@@ -1,12 +1,13 @@
 using System.Security.Claims;
 using DocumentFlow.Application.Documents;
+using DocumentFlow.Application.Approvals;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DocumentFlow.Api.Controllers;
 
 [ApiController, Authorize, Route("api/documents")]
-public sealed class DocumentsController(IDocumentService documents) : ControllerBase
+public sealed class DocumentsController(IDocumentService documents, IApprovalService approvals) : ControllerBase
 {
     private const long MaxRequestSize = 10 * 1024 * 1024 + 64 * 1024;
 
@@ -54,6 +55,22 @@ public sealed class DocumentsController(IDocumentService documents) : Controller
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await documents.DownloadAsync(id, versionNumber, userId, User.IsInRole("Admin"), cancellationToken);
         return result is null ? NotFound() : File(result.Content, result.ContentType, result.FileName, enableRangeProcessing: true);
+    }
+
+    [HttpPost("{id:guid}/submit-for-approval")]
+    public async Task<IActionResult> SubmitForApproval(Guid id, [FromBody] SubmitApprovalInput input, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        try { return Ok(await approvals.SubmitAsync(id, userId, input, cancellationToken)); }
+        catch (ApprovalInputException exception) { return Conflict(new { message = exception.Message }); }
+    }
+
+    [HttpGet("{id:guid}/workflow")]
+    public async Task<IActionResult> Workflow(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await approvals.GetTimelineAsync(id, userId, User.IsInRole("Admin"), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpPost("{id:guid}/versions")]

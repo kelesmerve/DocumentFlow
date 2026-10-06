@@ -10,6 +10,7 @@ public sealed class DocumentVersionConfiguration : IEntityTypeConfiguration<Docu
     {
         builder.ToTable("document_versions");
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.DocumentId, x.Id });
         builder.Property(x => x.VersionNumber).IsRequired();
         builder.HasIndex(x => new { x.DocumentId, x.VersionNumber }).IsUnique();
         builder.Property(x => x.OriginalFileName).HasMaxLength(255).IsRequired();

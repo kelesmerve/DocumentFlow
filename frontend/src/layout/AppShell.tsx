@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><LayoutDashboard size={17} /><span>Genel Bakış</span></NavLink>
         <div className="nav-section-label">DOSYALAR</div>
         <NavLink to="/documents" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><Files size={17} /><span>Belgelerim</span></NavLink>
-        <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><CheckCheck size={17} /><span>Onaylarım</span><small>Yakında</small></button>
+        {(user.role === 'Manager' || user.role === 'Admin') ? <NavLink to="/approvals" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><CheckCheck size={17} /><span>{user.role === 'Admin' ? 'Onay talepleri' : 'Onaylarım'}</span></NavLink> : null}
         <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><FileSignature size={17} /><span>İmzalarım</span><small>Yakında</small></button>
         <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><Archive size={17} /><span>Arşiv</span><small>Yakında</small></button>
         <div className="nav-section-label management-label">YÖNETİM</div>

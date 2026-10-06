@@ -106,6 +106,7 @@ button { color: inherit; }
 .status-approved, .status-signed { color: #356b54; background: #edf5f0; border-color: #dcebe1; }
 .status-rejected { color: #984747; background: #f8eeee; border-color: #efdddd; }
 .status-pendingapproval { color: #426782; background: #edf3f7; border-color: #dbe7ef; }
+.status-revisionrequested { color: #8b6424; background: #fbf4e7; border-color: #efe1bf; }
 .status-archived { color: #697582; background: #eff1f3; border-color: #e1e5e8; }
 .icon-link, .icon-button { width: 29px; height: 29px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 4px; color: #788695; background: transparent; cursor: pointer; }
 .icon-link:hover, .icon-button:hover:not(:disabled) { border-color: var(--border); color: var(--accent); background: #fff; }
@@ -279,3 +280,46 @@ button { color: inherit; }
   .version-download { grid-column: 3; justify-self: start; margin: 0; }
   .version-download svg { display: block; }
 }
+
+.approval-table { min-width: 790px; }
+.detail-identification { flex-wrap: wrap; }
+.detail-tabs { overflow-x: auto; }
+.process-section, .approval-request-card, .approval-review-card { margin-top: 24px; padding: 22px; border: 1px solid var(--border); border-radius: 5px; background: #fff; }
+.workflow-timeline { list-style: none; margin: 26px 0 0; padding: 0; }
+.timeline-event { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 14px; padding-bottom: 24px; }
+.timeline-event:not(:last-child)::after { position: absolute; top: 16px; bottom: 0; left: 7px; width: 1px; background: #dce3e8; content: ''; }
+.timeline-marker { z-index: 1; width: 15px; height: 15px; margin-top: 2px; border: 3px solid #dce5eb; border-radius: 50%; background: #fff; }
+.timeline-decision { border-color: #8ca99b; }
+.timeline-copy { display: grid; gap: 5px; }
+.timeline-copy strong { color: #253541; font-size: 13px; font-weight: 620; }
+.timeline-copy > span, .timeline-copy time { color: #7c8994; font-size: 11px; }
+.timeline-copy p { margin: 3px 0; padding: 9px 12px; border-left: 2px solid #cbd7df; color: #566573; background: #f7f9fa; font-size: 12px; }
+.compact-empty { padding: 28px; }
+.approval-pending { color: #8b6424; background: #fbf4e7; }
+.approval-approved { color: #3e7257; background: #eaf4ee; }
+.approval-rejected { color: #9c4d4a; background: #faeceb; }
+.approval-revisionrequested { color: #8b6424; background: #fbf4e7; }
+.approval-review-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.approval-review-card h2, .approval-request-card h2 { margin: 5px 0 7px; color: #273743; font-size: 15px; }
+.approval-review-card p, .approval-request-card p { margin: 0; color: #72808b; font-size: 11px; overflow-wrap: anywhere; }
+.section-kicker { margin: 0; color: #87939d; font-size: 9px; letter-spacing: .09em; }
+.approval-request-card { display: grid; gap: 17px; }
+.approval-request-card .section-heading { margin: 0; }
+.approval-request-card blockquote { margin: 0; padding: 12px 15px; border-left: 2px solid #9babb7; color: #4c5d69; background: #f7f9fa; font-size: 12px; }
+.review-description { display: flex; align-items: flex-start; gap: 8px; }
+.review-description svg { flex: 0 0 auto; }
+.decision-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.button-danger { color: #fff; border: 1px solid #a84d4b; background: #a84d4b; }
+.button-danger:hover { background: #91413f; }
+.dialog-backdrop { z-index: 20; position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(24 35 43 / 42%); }
+.workflow-dialog { width: min(100%, 480px); max-height: min(90vh, 700px); overflow-y: auto; border: 1px solid #dce3e8; border-radius: 6px; background: #fff; box-shadow: 0 18px 60px rgb(18 31 40 / 20%); }
+.workflow-dialog > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 21px; border-bottom: 1px solid var(--border); }
+.workflow-dialog > header h2 { margin: 0; color: #293944; font-size: 16px; }
+.workflow-form { display: grid; gap: 11px; padding: 20px 21px; }
+.workflow-form label { margin-top: 5px; color: #4d5e6a; font-size: 11px; font-weight: 600; }
+.workflow-form select, .workflow-form textarea { width: 100%; border: 1px solid #d4dde3; border-radius: 4px; padding: 10px 11px; color: #334451; background: white; font: inherit; font-size: 12px; }
+.workflow-form select:focus, .workflow-form textarea:focus { outline: 3px solid rgb(73 111 139 / 18%); border-color: #7897ad; }
+.dialog-intro { margin: 0 0 5px; color: #73818c; font-size: 12px; line-height: 1.6; }
+.workflow-form footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.field-hint { margin: -5px 0 3px; color: #8a959e; font-size: 10px; }
+@media (max-width: 600px) { .process-section, .approval-request-card, .approval-review-card { padding: 17px; } .approval-review-card { align-items: flex-start; flex-direction: column; } .decision-actions { justify-content: stretch; flex-wrap: wrap; } .decision-actions .button { flex: 1 1 30%; justify-content: center; } }

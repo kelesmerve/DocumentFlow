@@ -3,6 +3,7 @@ import type { DocumentStatus } from '../types/api'
 const labels: Record<DocumentStatus, string> = {
   Draft: 'Taslak',
   PendingApproval: 'Onay bekliyor',
+  RevisionRequested: 'Revizyon istendi',
   Approved: 'Onaylandı',
   Rejected: 'Reddedildi',
   Signed: 'İmzalandı',

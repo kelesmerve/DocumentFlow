@@ -30,4 +30,5 @@ public sealed class DocumentVersion
     public DateTime CreatedAtUtc { get; private set; }
     public Document Document { get; private set; } = null!;
     public User UploadedByUser { get; private set; } = null!;
+    public ICollection<ApprovalRequest> ApprovalRequests { get; private set; } = new List<ApprovalRequest>();
 }

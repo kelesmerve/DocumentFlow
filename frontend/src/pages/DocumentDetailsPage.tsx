@@ -1,23 +1,27 @@
 import { useState, type FormEvent } from 'react'
 import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownToLine, ArrowLeft, Check, Copy, FileText, LoaderCircle, Plus, Upload } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeft, Check, Copy, FileText, LoaderCircle, Plus, Send, Upload } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { documentsApi } from '../api/documents'
+import { approvalsApi } from '../api/approvals'
 import { useAuth } from '../auth/useAuth'
 import { DocumentStatusBadge } from '../components/DocumentStatusBadge'
 import { FilePicker } from '../components/FilePicker'
+import { SubmitApprovalDialog } from '../components/ApprovalDialogs'
+import { WorkflowTimeline } from '../components/WorkflowTimeline'
 import { EmptyState, ErrorNotice, LoadingState } from '../components/Ui'
 import { formatDate, formatFileSize } from '../utils/format'
 
-type DetailTab = 'overview' | 'versions'
+type DetailTab = 'overview' | 'versions' | 'process'
 
 export function DocumentDetailsPage() {
   const { id = '' } = useParams()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<DetailTab>('overview')
+  const [submitOpen, setSubmitOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState('')
@@ -43,6 +47,13 @@ export function DocumentDetailsPage() {
       setFileError('')
       setUploadOpen(false)
       setUploadProgress(null)
+    },
+  })
+  const submitApproval = useMutation({
+    mutationFn: ({ managerId, comment }: { managerId: string; comment: string }) => approvalsApi.submit(id, managerId, comment),
+    onSuccess: async () => {
+      setSubmitOpen(false)
+      await Promise.all([queryClient.invalidateQueries({ queryKey: detailKey }), queryClient.invalidateQueries({ queryKey: ['documents'] }), queryClient.invalidateQueries({ queryKey: ['workflow', id] })])
     },
   })
 
@@ -87,13 +98,14 @@ export function DocumentDetailsPage() {
   return <>
     <Link className="back-link" to="/documents"><ArrowLeft size={16} />Belgelerim</Link>
     <div className="detail-header">
-      <div className="detail-identification"><span className="document-number-large">{document.documentNumber}</span><DocumentStatusBadge status={document.status} /></div>
+      <div className="detail-identification"><span className="document-number-large">{document.documentNumber}</span><DocumentStatusBadge status={document.status} />{isOwner && document.status === 'Draft' && <button className="button button-primary button-small" onClick={() => setSubmitOpen(true)}><Send size={14} />Onaya gönder</button>}</div>
       <h1>{document.title}</h1>
       <div className="detail-meta"><span>{document.category}</span><span className="meta-dot" /><span>Oluşturulma {formatDate(document.createdAtUtc)}</span></div>
     </div>
     <div className="detail-tabs" role="tablist" aria-label="Belge bölümleri">
       <button role="tab" aria-selected={tab === 'overview'} className={tab === 'overview' ? 'detail-tab active' : 'detail-tab'} onClick={() => setTab('overview')}>Genel</button>
       <button role="tab" aria-selected={tab === 'versions'} className={tab === 'versions' ? 'detail-tab active' : 'detail-tab'} onClick={() => setTab('versions')}>Versiyonlar <span className="tab-count">{details.versions.length}</span></button>
+      <button role="tab" aria-selected={tab === 'process'} className={tab === 'process' ? 'detail-tab active' : 'detail-tab'} onClick={() => setTab('process')}>Süreç</button>
     </div>
     {downloadError && <div className="inline-error" role="alert">{downloadError}</div>}
 
@@ -107,7 +119,7 @@ export function DocumentDetailsPage() {
     </section>}
 
     {tab === 'versions' && <section className="versions-section" role="tabpanel">
-      <div className="section-heading versions-heading"><div><h2>Dosya versiyonları</h2><p>Önceki dosyalar korunur ve indirilebilir.</p></div>{isOwner && document.status === 'Draft' && <button className="button button-secondary" onClick={() => setUploadOpen((open) => !open)}><Plus size={16} />Yeni versiyon yükle</button>}</div>
+      <div className="section-heading versions-heading"><div><h2>Dosya versiyonları</h2><p>Önceki dosyalar korunur ve indirilebilir.</p></div>{isOwner && (document.status === 'Draft' || document.status === 'RevisionRequested') && <button className="button button-secondary" onClick={() => setUploadOpen((open) => !open)}><Plus size={16} />Yeni versiyon yükle</button>}</div>
       {uploadOpen && <form className="version-upload-form" onSubmit={submitVersion}>
         <div><h3>Yeni dosya sürümü</h3><p>Yeni yükleme ayrı bir versiyon olarak saklanır.</p></div>
         <FilePicker id="new-version-file" file={file} onChange={(next) => { setFile(next); setFileError('') }} error={fileError} disabled={addVersion.isPending} />
@@ -119,6 +131,8 @@ export function DocumentDetailsPage() {
         <div className="version-number">v{version.versionNumber}</div><span className="file-icon"><FileText size={18} /></span><div className="version-file-copy"><strong>{version.originalFileName}</strong><span>{formatFileSize(version.fileSize)} <span className="meta-dot" /> {formatDate(version.createdAtUtc)}</span><HashLine hash={version.fileHash} version={version.versionNumber} copied={copiedVersion === version.versionNumber} onCopy={() => void copyHash(version.fileHash, version.versionNumber)} /></div><button className="button button-secondary button-small version-download" onClick={() => void download(version.versionNumber, version.originalFileName)}><ArrowDownToLine size={15} />İndir</button>
       </article>)}</div> : <EmptyState title="Henüz dosya sürümü yok." />}
     </section>}
+    {tab === 'process' && <section className="process-section" role="tabpanel"><div className="section-heading"><div><h2>Belge süreci</h2><p>Belge sürümleri ve onay kararlarından oluşan geçmiş.</p></div></div><WorkflowTimeline documentId={id} /></section>}
+    {submitOpen && <SubmitApprovalDialog onClose={() => setSubmitOpen(false)} onSubmit={async (managerId, comment) => { await submitApproval.mutateAsync({ managerId, comment }) }} />}
   </>
 }
 

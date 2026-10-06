@@ -62,13 +62,22 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
     {
         var document = await AccessibleDocuments(userId, isAdmin)
             .AsNoTracking().Include(x => x.Versions).SingleOrDefaultAsync(x => x.Id == documentId, cancellationToken);
-        return document is null ? null : ToDetails(document, document.Versions.OrderBy(x => x.VersionNumber).ToArray());
+        if (document is null) return null;
+        var versions = document.Versions.AsEnumerable();
+        if (!isAdmin && document.OwnerId != userId)
+        {
+            var assignedVersionIds = await db.ApprovalRequests.AsNoTracking().Where(x => x.DocumentId == documentId && x.AssignedToUserId == userId)
+                .Select(x => x.DocumentVersionId).ToListAsync(cancellationToken);
+            versions = versions.Where(x => assignedVersionIds.Contains(x.Id));
+        }
+        return ToDetails(document, versions.OrderBy(x => x.VersionNumber).ToArray());
     }
 
     public async Task<DocumentDownload?> DownloadAsync(Guid documentId, int versionNumber, Guid userId, bool isAdmin, CancellationToken cancellationToken)
     {
         var version = await db.DocumentVersions.AsNoTracking()
-            .Where(x => x.DocumentId == documentId && x.VersionNumber == versionNumber && (isAdmin || x.Document.OwnerId == userId))
+            .Where(x => x.DocumentId == documentId && x.VersionNumber == versionNumber &&
+                (isAdmin || x.Document.OwnerId == userId || db.ApprovalRequests.Any(a => a.DocumentVersionId == x.Id && a.AssignedToUserId == userId)))
             .Select(x => new { x.VersionNumber, x.OriginalFileName, x.StoredFileName, x.ContentType })
             .SingleOrDefaultAsync(cancellationToken);
         if (version is null) return null;
@@ -91,7 +100,7 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
                     .FromSqlInterpolated($"SELECT * FROM documents WHERE \"Id\" = {documentId} FOR UPDATE")
                     .SingleOrDefaultAsync(cancellationToken);
                 if (document is null || document.OwnerId != userId) return null;
-                if (document.Status != DocumentStatus.Draft) throw new DocumentInputException("Versions can only be added to draft documents.");
+                if (document.Status is not (DocumentStatus.Draft or DocumentStatus.RevisionRequested)) throw new DocumentInputException("Versions can only be added to draft or revision-requested documents.");
 
                 versionNumber = (await db.DocumentVersions.Where(x => x.DocumentId == documentId)
                     .MaxAsync(x => (int?)x.VersionNumber, cancellationToken) ?? 0) + 1;
@@ -100,9 +109,8 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
                 var now = DateTime.UtcNow;
                 var version = CreateVersion(documentId, versionNumber, upload, file, storedName, userId, now);
                 db.DocumentVersions.Add(version);
+                document.AddVersion(version, now);
                 await db.SaveChangesAsync(cancellationToken);
-                await db.Documents.Where(x => x.Id == documentId)
-                    .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.UpdatedAtUtc, now), cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
                 var updatedDocument = await db.Documents.AsNoTracking().SingleAsync(x => x.Id == documentId, cancellationToken);
@@ -130,7 +138,7 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
     private IQueryable<Document> AccessibleDocuments(Guid userId, bool isAdmin)
     {
         var query = db.Documents.AsQueryable();
-        return isAdmin ? query : query.Where(x => x.OwnerId == userId);
+        return isAdmin ? query : query.Where(x => x.OwnerId == userId || db.ApprovalRequests.Any(a => a.DocumentId == x.Id && a.AssignedToUserId == userId));
     }
 
     private static async Task<ValidatedUpload> ReadAndValidateAsync(DocumentUpload upload, CancellationToken cancellationToken)

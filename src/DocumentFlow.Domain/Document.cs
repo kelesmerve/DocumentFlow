@@ -27,11 +27,27 @@ public sealed class Document
     public DateTime? UpdatedAtUtc { get; private set; }
     public User Owner { get; private set; } = null!;
     public ICollection<DocumentVersion> Versions { get; private set; } = new List<DocumentVersion>();
+    public ICollection<ApprovalRequest> ApprovalRequests { get; private set; } = new List<ApprovalRequest>();
 
     public void AddVersion(DocumentVersion version, DateTime createdAtUtc)
     {
-        if (Status != DocumentStatus.Draft) throw new InvalidOperationException("Only draft documents can receive new versions.");
+        if (Status is not (DocumentStatus.Draft or DocumentStatus.RevisionRequested)) throw new InvalidOperationException("Only draft or revision-requested documents can receive new versions.");
         Versions.Add(version);
+        Status = DocumentStatus.Draft;
         UpdatedAtUtc = DateTime.SpecifyKind(createdAtUtc, DateTimeKind.Utc);
+    }
+
+    public void SubmitForApproval(DateTime submittedAtUtc)
+    {
+        if (Status != DocumentStatus.Draft) throw new InvalidOperationException("Only draft documents can be submitted for approval.");
+        Status = DocumentStatus.PendingApproval;
+        UpdatedAtUtc = DateTime.SpecifyKind(submittedAtUtc, DateTimeKind.Utc);
+    }
+    public void ApplyDecision(DocumentStatus status, DateTime atUtc)
+    {
+        if (Status != DocumentStatus.PendingApproval) throw new InvalidOperationException("Only pending documents can receive an approval decision.");
+        if (status is not (DocumentStatus.Approved or DocumentStatus.Rejected or DocumentStatus.RevisionRequested)) throw new ArgumentOutOfRangeException(nameof(status));
+        Status = status;
+        UpdatedAtUtc = DateTime.SpecifyKind(atUtc, DateTimeKind.Utc);
     }
 }

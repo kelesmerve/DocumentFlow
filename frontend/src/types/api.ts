@@ -1,5 +1,6 @@
 export type UserRole = 'Employee' | 'Manager' | 'Admin'
-export type DocumentStatus = 'Draft' | 'PendingApproval' | 'Approved' | 'Rejected' | 'Signed' | 'Archived'
+export type DocumentStatus = 'Draft' | 'PendingApproval' | 'RevisionRequested' | 'Approved' | 'Rejected' | 'Signed' | 'Archived'
+export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected' | 'RevisionRequested'
 
 export interface User {
   id: string
@@ -55,6 +56,20 @@ export interface DocumentInput {
   category: string
   file: File
 }
+
+export interface Manager { id: string; firstName: string; lastName: string; email: string }
+export interface ApprovalSummary {
+  id: string; documentId: string; documentNumber: string; documentTitle: string; category: string
+  versionNumber: number; requestedBy: string; requestedByEmail: string; requestComment: string | null
+  status: ApprovalStatus; createdAtUtc: string
+}
+export interface ApprovalDetails {
+  approval: ApprovalSummary; description: string; originalFileName: string; contentType: string
+  fileSize: number; fileHash: string; assignedTo: string; decisionComment: string | null; decidedAtUtc: string | null
+}
+export interface ApprovalInput { comment: string }
+export interface ApprovalPage { items: ApprovalSummary[]; page: number; pageSize: number; totalCount: number }
+export interface WorkflowEvent { kind: string; title: string; actor: string; detail: string | null; versionNumber: number | null; atUtc: string }
 
 export interface ApiErrorBody {
   message?: string

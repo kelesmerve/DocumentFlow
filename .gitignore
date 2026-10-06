@@ -21,3 +21,4 @@ appsettings.Development.json
 **/node_modules/
 frontend/dist/
 .npm-cache/
+.test-artifacts/
