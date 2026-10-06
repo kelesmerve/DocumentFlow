@@ -4,6 +4,7 @@
 .idea/
 .vscode/
 TestResults/
+**/storage/
 .tools/
 .dotnet-cli/
 *.user

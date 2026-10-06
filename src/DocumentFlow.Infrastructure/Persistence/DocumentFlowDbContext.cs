@@ -6,5 +6,11 @@ namespace DocumentFlow.Infrastructure.Persistence;
 public sealed class DocumentFlowDbContext(DbContextOptions<DocumentFlowDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
-    protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder.ApplyConfigurationsFromAssembly(typeof(DocumentFlowDbContext).Assembly);
+    public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasSequence<long>("document_number_sequence");
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(DocumentFlowDbContext).Assembly);
+    }
 }
