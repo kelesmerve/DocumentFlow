@@ -15,6 +15,8 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddCors(options => options.AddPolicy("FrontendDevelopment", policy =>
+    policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -51,6 +53,7 @@ if (app.Environment.IsDevelopment())
     await db.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<DevelopmentUserSeeder>().SeedAsync(CancellationToken.None);
 }
+if (app.Environment.IsDevelopment()) app.UseCors("FrontendDevelopment");
 app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
 app.Run();
 

@@ -179,7 +179,7 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
         new(Guid.NewGuid(), documentId, number, file.OriginalFileName, storedName, upload.ContentType, file.Length, file.Hash, uploadedBy, now);
 
     private static DocumentDetails ToDetails(Document document, IEnumerable<DocumentVersion> versions) =>
-        new(ToSummary(document), versions.Select(x => new DocumentVersionSummary(x.VersionNumber, x.OriginalFileName, x.ContentType, x.FileSize, x.UploadedByUserId, x.CreatedAtUtc)).ToArray());
+        new(ToSummary(document), versions.Select(x => new DocumentVersionSummary(x.VersionNumber, x.OriginalFileName, x.ContentType, x.FileSize, x.FileHash, x.UploadedByUserId, x.CreatedAtUtc)).ToArray());
 
     private static DocumentSummary ToSummary(Document document) => new(document.Id, document.DocumentNumber, document.Title, document.Description, document.Category, document.Status, document.OwnerId, document.CreatedAtUtc, document.UpdatedAtUtc);
 

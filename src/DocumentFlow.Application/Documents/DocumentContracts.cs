@@ -3,7 +3,7 @@ using DocumentFlow.Domain;
 namespace DocumentFlow.Application.Documents;
 
 public sealed record DocumentUpload(string FileName, string ContentType, long Length, Stream Content);
-public sealed record DocumentVersionSummary(int VersionNumber, string OriginalFileName, string ContentType, long FileSize, Guid UploadedByUserId, DateTime CreatedAtUtc);
+public sealed record DocumentVersionSummary(int VersionNumber, string OriginalFileName, string ContentType, long FileSize, string FileHash, Guid UploadedByUserId, DateTime CreatedAtUtc);
 public sealed record DocumentSummary(Guid Id, string DocumentNumber, string Title, string? Description, string Category, DocumentStatus Status, Guid OwnerId, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc);
 public sealed record DocumentDetails(DocumentSummary Document, IReadOnlyList<DocumentVersionSummary> Versions);
 public sealed record DocumentPage(IReadOnlyList<DocumentSummary> Items, int Page, int PageSize, int TotalCount);
