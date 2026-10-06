@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: documentflow-postgres
+    environment:
+      POSTGRES_DB: documentflow
+      POSTGRES_USER: documentflow
+      POSTGRES_PASSWORD: local-dev-only
+    ports:
+      - "5433:5432"
+    volumes:
+      - documentflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U documentflow -d documentflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  documentflow-postgres-data:
