@@ -15,7 +15,8 @@ public sealed class AuditQueryService(DocumentFlowDbContext db) : IAuditQuerySer
         [AuditAction.ApprovalApproved] = "Onaylandı",
         [AuditAction.ApprovalRejected] = "Reddedildi",
         [AuditAction.RevisionRequested] = "Revizyon istendi",
-        [AuditAction.DocumentDownloaded] = "Dosya indirildi"
+        [AuditAction.DocumentDownloaded] = "Dosya indirildi",
+        [AuditAction.DocumentSigned] = "Belge imzalandı"
     };
 
     public async Task<AuditPage> ListAsync(AuditAction? action, Guid? userId, string? documentNumber, int page, int pageSize, CancellationToken cancellationToken)

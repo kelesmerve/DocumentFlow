@@ -10,6 +10,7 @@ public sealed class DocumentFlowDbContext(DbContextOptions<DocumentFlowDbContext
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasSequence<long>("document_number_sequence");

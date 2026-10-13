@@ -328,4 +328,20 @@ button { color: inherit; }
 .dialog-intro { margin: 0 0 5px; color: #73818c; font-size: 12px; line-height: 1.6; }
 .workflow-form footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .field-hint { margin: -5px 0 3px; color: #8a959e; font-size: 10px; }
+.signature-panel { grid-column: 3 / -1; display: grid; gap: 8px; margin-top: 5px; padding-top: 10px; border-top: 1px solid #edf0f3; }
+.signature-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.signature-panel-heading > strong { display: flex; align-items: center; gap: 6px; color: #516474; font-size: 11px; font-weight: 620; }
+.signature-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid #e9edf0; border-radius: 4px; background: #fbfcfd; }
+.signature-entry-actions { display: flex; align-items: center; gap: 12px; }
+.signature-person { display: grid; gap: 3px; min-width: 0; }
+.signature-person strong { color: #354654; font-size: 11px; font-weight: 600; }
+.signature-person span, .signature-muted { color: #82909b; font-size: 10px; }
+.signature-status { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; font-size: 10px; }
+.signature-status.valid, .signature-success { color: #397456; }
+.signature-status.invalid, .signature-error { color: #a04d49; }
+.signature-status.muted { color: #758490; }
+.signature-success, .signature-error { font-size: 11px; }
+.signature-disclaimer { margin: 0; color: #89949d; font-size: 9px; line-height: 1.45; }
+.signature-dialog { width: min(100%, 430px); }
+@media (max-width: 650px) { .signature-panel { grid-column: 1 / -1; } .signature-entry { align-items: flex-start; flex-direction: column; } .signature-entry-actions { flex-wrap: wrap; } }
 @media (max-width: 600px) { .process-section, .approval-request-card, .approval-review-card { padding: 17px; } .approval-review-card { align-items: flex-start; flex-direction: column; } .decision-actions { justify-content: stretch; flex-wrap: wrap; } .decision-actions .button { flex: 1 1 30%; justify-content: center; } }

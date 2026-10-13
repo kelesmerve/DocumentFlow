@@ -11,6 +11,7 @@ import { DocumentStatusBadge } from '../components/DocumentStatusBadge'
 import { FilePicker } from '../components/FilePicker'
 import { SubmitApprovalDialog } from '../components/ApprovalDialogs'
 import { WorkflowTimeline } from '../components/WorkflowTimeline'
+import { VersionSignatures } from '../components/VersionSignatures'
 import { EmptyState, ErrorNotice, LoadingState } from '../components/Ui'
 import { formatDate, formatFileSize } from '../utils/format'
 
@@ -129,6 +130,7 @@ export function DocumentDetailsPage() {
       </form>}
       {details.versions.length ? <div className="version-list">{[...details.versions].sort((a, b) => b.versionNumber - a.versionNumber).map((version) => <article className="version-row" key={version.versionNumber}>
         <div className="version-number">v{version.versionNumber}</div><span className="file-icon"><FileText size={18} /></span><div className="version-file-copy"><strong>{version.originalFileName}</strong><span>{formatFileSize(version.fileSize)} <span className="meta-dot" /> {formatDate(version.createdAtUtc)}</span><HashLine hash={version.fileHash} version={version.versionNumber} copied={copiedVersion === version.versionNumber} onCopy={() => void copyHash(version.fileHash, version.versionNumber)} /></div><button className="button button-secondary button-small version-download" onClick={() => void download(version.versionNumber, version.originalFileName)}><ArrowDownToLine size={15} />İndir</button>
+        <VersionSignatures documentId={id} version={version} />
       </article>)}</div> : <EmptyState title="Henüz dosya sürümü yok." />}
     </section>}
     {tab === 'process' && <section className="process-section" role="tabpanel"><div className="section-heading"><div><h2>Belge süreci</h2><p>Belge sürümleri ve onay kararlarından oluşan geçmiş.</p></div></div><WorkflowTimeline documentId={id} /></section>}

@@ -175,6 +175,68 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.ToTable("documents", (string)null);
                 });
 
+            modelBuilder.Entity("DocumentFlow.Domain.DocumentSignature", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DocumentVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("HashAlgorithm")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("PublicKeyFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("SignatureAlgorithm")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("SignatureValue")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTime>("SignedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SignedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("SignedAtUtc")
+                        .IsDescending();
+
+                    b.HasIndex("SignedByUserId");
+
+                    b.HasIndex("DocumentId", "DocumentVersionId");
+
+                    b.HasIndex("DocumentVersionId", "SignedByUserId")
+                        .IsUnique();
+
+                    b.ToTable("document_signatures", (string)null);
+                });
+
             modelBuilder.Entity("DocumentFlow.Domain.DocumentVersion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -350,6 +412,34 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("DocumentFlow.Domain.DocumentSignature", b =>
+                {
+                    b.HasOne("DocumentFlow.Domain.Document", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DocumentFlow.Domain.User", "SignedByUser")
+                        .WithMany()
+                        .HasForeignKey("SignedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DocumentFlow.Domain.DocumentVersion", "DocumentVersion")
+                        .WithMany()
+                        .HasForeignKey("DocumentId", "DocumentVersionId")
+                        .HasPrincipalKey("DocumentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Document");
+
+                    b.Navigation("DocumentVersion");
+
+                    b.Navigation("SignedByUser");
                 });
 
             modelBuilder.Entity("DocumentFlow.Domain.DocumentVersion", b =>

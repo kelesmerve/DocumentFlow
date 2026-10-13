@@ -34,7 +34,8 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DocumentFlow"] = databaseConnection.ConnectionString,
-                ["FileStorage:RootPath"] = _storageRoot
+                ["FileStorage:RootPath"] = _storageRoot,
+                ["SignatureSigning:KeyDirectory"] = Path.Combine(_storageRoot, "signing-keys")
             });
         });
         builder.ConfigureServices(services =>

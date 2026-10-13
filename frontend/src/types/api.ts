@@ -29,6 +29,7 @@ export interface DocumentSummary {
 }
 
 export interface DocumentVersion {
+  id: string
   versionNumber: number
   originalFileName: string
   contentType: string
@@ -70,9 +71,12 @@ export interface ApprovalDetails {
 export interface ApprovalInput { comment: string }
 export interface ApprovalPage { items: ApprovalSummary[]; page: number; pageSize: number; totalCount: number }
 export interface WorkflowEvent { kind: string; title: string; actor: string; detail: string | null; versionNumber: number | null; atUtc: string }
-export type AuditAction = 'DocumentCreated' | 'DocumentVersionUploaded' | 'ApprovalSubmitted' | 'ApprovalApproved' | 'ApprovalRejected' | 'RevisionRequested' | 'DocumentDownloaded'
+export type AuditAction = 'DocumentCreated' | 'DocumentVersionUploaded' | 'ApprovalSubmitted' | 'ApprovalApproved' | 'ApprovalRejected' | 'RevisionRequested' | 'DocumentDownloaded' | 'DocumentSigned'
 export interface AuditEntry { id: string; action: AuditAction; actionDisplayName: string; userId: string; userName: string; userEmail: string; documentId: string | null; documentNumber: string | null; documentTitle: string | null; documentVersionId: string | null; versionNumber: number | null; approvalRequestId: string | null; description: string | null; createdAtUtc: string }
 export interface AuditPage { items: AuditEntry[]; page: number; pageSize: number; totalCount: number }
+export interface SignatureSummary { id: string; documentId: string; documentVersionId: string; signedByUserId: string; signedByName: string; signatureAlgorithm: string; hashAlgorithm: string; documentHash: string; publicKeyFingerprint: string; signedAtUtc: string }
+export interface SignatureList { items: SignatureSummary[]; canSign: boolean }
+export interface SignatureVerification { signatureId: string; signedByUserId: string; signedByName: string; signatureAlgorithm: string; hashAlgorithm: string; publicKeyFingerprint: string; signedAtUtc: string; result: 'Valid' | 'Invalid' | 'Unverifiable'; message: string }
 
 export interface ApiErrorBody {
   message?: string

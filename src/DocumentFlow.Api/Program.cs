@@ -4,6 +4,7 @@ using DocumentFlow.Application.Authentication;
 using DocumentFlow.Application.Approvals;
 using DocumentFlow.Application.Audit;
 using DocumentFlow.Application.Documents;
+using DocumentFlow.Application.Signatures;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Authentication;
 using DocumentFlow.Infrastructure.Approvals;
@@ -11,6 +12,7 @@ using DocumentFlow.Infrastructure.Audit;
 using DocumentFlow.Infrastructure.Documents;
 using DocumentFlow.Infrastructure.Persistence;
 using DocumentFlow.Infrastructure.Storage;
+using DocumentFlow.Infrastructure.Signatures;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +45,9 @@ builder.Services.AddScoped<DevelopmentUserSeeder>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IApprovalService, ApprovalService>();
 builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
+builder.Services.AddSingleton<IRsaSigningKeyStore>(services => new RsaSigningKeyStore(
+    builder.Environment.IsDevelopment(), services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()));
+builder.Services.AddScoped<IDocumentSignatureService, DocumentSignatureService>();
 builder.Services.AddSingleton<IFileStorage>(_ =>
 {
     var storagePath = builder.Configuration["FileStorage:RootPath"] ?? "storage";
