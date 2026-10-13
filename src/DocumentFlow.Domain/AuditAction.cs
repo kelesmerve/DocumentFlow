@@ -9,5 +9,6 @@ public enum AuditAction
     ApprovalRejected,
     RevisionRequested,
     DocumentDownloaded,
-    DocumentSigned
+    DocumentSigned,
+    TimestampCreated
 }

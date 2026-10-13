@@ -12,7 +12,7 @@ const actions: { value: AuditAction; label: string }[] = [
   { value: 'ApprovalSubmitted', label: 'Onaya gönderildi' }, { value: 'ApprovalApproved', label: 'Onaylandı' },
   { value: 'ApprovalRejected', label: 'Reddedildi' }, { value: 'RevisionRequested', label: 'Revizyon istendi' },
   { value: 'DocumentDownloaded', label: 'Dosya indirildi' },
-  { value: 'DocumentSigned', label: 'Belge imzalandı' },
+  { value: 'DocumentSigned', label: 'Belge imzalandı' }, { value: 'TimestampCreated', label: 'Zaman damgası oluşturuldu' },
 ]
 
 export function AuditPage() {

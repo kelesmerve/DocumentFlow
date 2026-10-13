@@ -35,7 +35,9 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:DocumentFlow"] = databaseConnection.ConnectionString,
                 ["FileStorage:RootPath"] = _storageRoot,
-                ["SignatureSigning:KeyDirectory"] = Path.Combine(_storageRoot, "signing-keys")
+                ["SignatureSigning:KeyDirectory"] = Path.Combine(_storageRoot, "signing-keys"),
+                ["Timestamping:ProviderType"] = "Local",
+                ["Timestamping:Local:KeyDirectory"] = Path.Combine(_storageRoot, "tsa-keys")
             });
         });
         builder.ConfigureServices(services =>

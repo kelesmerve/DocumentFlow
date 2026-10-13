@@ -13,6 +13,8 @@ using DocumentFlow.Infrastructure.Documents;
 using DocumentFlow.Infrastructure.Persistence;
 using DocumentFlow.Infrastructure.Storage;
 using DocumentFlow.Infrastructure.Signatures;
+using DocumentFlow.Application.Timestamps;
+using DocumentFlow.Infrastructure.Timestamps;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +50,32 @@ builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
 builder.Services.AddSingleton<IRsaSigningKeyStore>(services => new RsaSigningKeyStore(
     builder.Environment.IsDevelopment(), services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()));
 builder.Services.AddScoped<IDocumentSignatureService, DocumentSignatureService>();
+var timestampProviderType = builder.Configuration["Timestamping:ProviderType"] ?? (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Test") ? "Local" : "ExternalRfc3161");
+if (timestampProviderType == "Local")
+{
+    if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Test"))
+        throw new InvalidOperationException("Local timestamp provider is only permitted in Development and Test environments.");
+    builder.Services.AddSingleton<LocalTimestampProvider>();
+    builder.Services.AddSingleton<ITimestampProvider>(services => services.GetRequiredService<LocalTimestampProvider>());
+}
+else if (timestampProviderType == "ExternalRfc3161")
+{
+    var externalUrl = builder.Configuration["Timestamping:External:Url"];
+    var trustAnchors = builder.Configuration.GetSection("Timestamping:External:TrustedCertificates").Get<string[]>();
+    var hasTrustedExternalConfiguration = Uri.TryCreate(externalUrl, UriKind.Absolute, out var externalUri) &&
+        externalUri.Scheme == Uri.UriSchemeHttps && trustAnchors is { Length: > 0 } && trustAnchors.All(path => File.Exists(Path.GetFullPath(path)));
+    if (!hasTrustedExternalConfiguration)
+    {
+        builder.Services.AddSingleton<ITimestampProvider, DisabledTimestampProvider>();
+    }
+    else
+    {
+        builder.Services.AddHttpClient<ExternalRfc3161TimestampProvider>(client => client.Timeout = TimeSpan.FromSeconds(10));
+        builder.Services.AddTransient<ITimestampProvider>(services => services.GetRequiredService<ExternalRfc3161TimestampProvider>());
+    }
+}
+else throw new InvalidOperationException("Timestamping:ProviderType must be Local or ExternalRfc3161.");
+builder.Services.AddScoped<ISignatureTimestampService, SignatureTimestampService>();
 builder.Services.AddSingleton<IFileStorage>(_ =>
 {
     var storagePath = builder.Configuration["FileStorage:RootPath"] ?? "storage";

@@ -1,10 +1,12 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Persistence;
 using DocumentFlow.Infrastructure.Signatures;
+using DocumentFlow.Infrastructure.Timestamps;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -183,6 +185,138 @@ public sealed class SignatureApiTests
         Assert.Equal("Unverifiable", Assert.Single(missingKeyJson.RootElement.EnumerateArray()).GetProperty("result").GetString());
     }
 
+    [Fact]
+    public async Task RFC3161_local_timestamp_is_valid_idempotent_bound_to_signature_and_audited()
+    {
+        await using var factory = new DocumentApiFactory();
+        using var owner = await LoginAsync(factory, "employee@documentflow.local", "DevEmployee!2026");
+        using var manager = await LoginAsync(factory, "manager@documentflow.local", "DevManager!2026");
+        using var admin = await LoginAsync(factory, "admin@documentflow.local", "DevAdmin!2026");
+        using var otherManager = await CreateManagerClientAsync(factory);
+        var (documentId, versionId) = await CreateApprovedDocumentAsync(factory, owner, manager, "RFC3161 timestamp");
+        using var signedResponse = await manager.PostAsync(SignRoute(documentId, versionId), content: null);
+        Assert.Equal(HttpStatusCode.OK, signedResponse.StatusCode);
+        using var signedJson = JsonDocument.Parse(await signedResponse.Content.ReadAsStringAsync());
+        var signatureId = signedJson.RootElement.GetProperty("id").GetGuid();
+
+        using var forbiddenCreate = await otherManager.PostAsync(TimestampRoute(signatureId), content: null);
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenCreate.StatusCode);
+        using var ownerCreate = await owner.PostAsync(TimestampRoute(signatureId), content: null);
+        Assert.Equal(HttpStatusCode.Forbidden, ownerCreate.StatusCode);
+        using var forbiddenList = await otherManager.GetAsync(TimestampListRoute(signatureId));
+        Assert.Equal(HttpStatusCode.NotFound, forbiddenList.StatusCode);
+
+        using var created = await manager.PostAsync(TimestampRoute(signatureId), content: null);
+        Assert.True(created.StatusCode == HttpStatusCode.OK, $"{created.StatusCode}: {await created.Content.ReadAsStringAsync()}");
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var timestampId = createdJson.RootElement.GetProperty("timestamp").GetProperty("id").GetGuid();
+        Assert.Equal("Local", createdJson.RootElement.GetProperty("timestamp").GetProperty("providerType").GetString());
+        Assert.Equal("Valid", createdJson.RootElement.GetProperty("verification").GetProperty("result").GetString());
+        Assert.DoesNotContain("PRIVATE KEY", createdJson.RootElement.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("accessToken", createdJson.RootElement.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("timestampToken", createdJson.RootElement.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.False(createdJson.RootElement.GetProperty("timestamp").TryGetProperty("nonce", out _));
+
+        using var duplicate = await manager.PostAsync(TimestampRoute(signatureId), content: null);
+        using var duplicateJson = JsonDocument.Parse(await duplicate.Content.ReadAsStringAsync());
+        Assert.Equal(timestampId, duplicateJson.RootElement.GetProperty("timestamp").GetProperty("id").GetGuid());
+        using var adminDuplicate = await admin.PostAsync(TimestampRoute(signatureId), content: null);
+        Assert.Equal(HttpStatusCode.OK, adminDuplicate.StatusCode);
+        using var adminDuplicateJson = JsonDocument.Parse(await adminDuplicate.Content.ReadAsStringAsync());
+        Assert.Equal(timestampId, adminDuplicateJson.RootElement.GetProperty("timestamp").GetProperty("id").GetGuid());
+
+        using var list = await owner.GetAsync(TimestampListRoute(signatureId));
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        var listed = Assert.Single(listJson.RootElement.EnumerateArray());
+        Assert.Equal(signatureId, listed.GetProperty("documentSignatureId").GetGuid());
+
+        using var verify = await owner.GetAsync(TimestampVerifyRoute(signatureId, timestampId));
+        using var verifyJson = JsonDocument.Parse(await verify.Content.ReadAsStringAsync());
+        Assert.Equal("Valid", verifyJson.RootElement.GetProperty("result").GetString());
+        Assert.Equal("SHA-256", verifyJson.RootElement.GetProperty("algorithm").GetString());
+        Assert.True(verifyJson.RootElement.GetProperty("genTimeUtc").GetDateTime() <= DateTime.UtcNow);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+        var timestamp = await db.DocumentTimestamps.AsNoTracking().SingleAsync(x => x.DocumentSignatureId == signatureId);
+        Assert.Equal(signatureId, timestamp.DocumentSignatureId);
+        Assert.Equal("Local", timestamp.ProviderType);
+        Assert.NotEmpty(Convert.FromBase64String(timestamp.TimestampToken));
+        var audit = await db.AuditLogs.AsNoTracking().SingleAsync(x => x.Action == AuditAction.TimestampCreated && x.DocumentId == documentId);
+        Assert.Equal(versionId, audit.DocumentVersionId);
+        Assert.Equal(await db.DocumentSignatures.Where(x => x.Id == signatureId).Select(x => x.SignedByUserId).SingleAsync(), audit.UserId);
+        Assert.Equal(1, await db.AuditLogs.CountAsync(x => x.Action == AuditAction.TimestampCreated && x.DocumentId == documentId));
+
+        var originalToken = timestamp.TimestampToken;
+        var malformedToken = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+        await db.DocumentTimestamps.Where(x => x.Id == timestampId)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.TimestampToken, malformedToken));
+        using (var tokenTampered = await owner.GetAsync(TimestampVerifyRoute(signatureId, timestampId)))
+        using (var tamperedJson = JsonDocument.Parse(await tokenTampered.Content.ReadAsStringAsync()))
+            Assert.Equal("Invalid", tamperedJson.RootElement.GetProperty("result").GetString());
+        await db.DocumentTimestamps.Where(x => x.Id == timestampId)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.TimestampToken, originalToken));
+        await db.DocumentTimestamps.Where(x => x.Id == timestampId)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.MessageImprint, new string('0', 64)));
+        using (var imprintTampered = await owner.GetAsync(TimestampVerifyRoute(signatureId, timestampId)))
+        using (var tamperedJson = JsonDocument.Parse(await imprintTampered.Content.ReadAsStringAsync()))
+            Assert.Equal("Invalid", tamperedJson.RootElement.GetProperty("result").GetString());
+        await db.DocumentTimestamps.Where(x => x.Id == timestampId)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.MessageImprint, timestamp.MessageImprint));
+        await db.DocumentTimestamps.Where(x => x.Id == timestampId)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.SerialNumber, "123456"));
+        using (var serialTampered = await owner.GetAsync(TimestampVerifyRoute(signatureId, timestampId)))
+        using (var tamperedJson = JsonDocument.Parse(await serialTampered.Content.ReadAsStringAsync()))
+            Assert.Equal("Invalid", tamperedJson.RootElement.GetProperty("result").GetString());
+    }
+
+    [Fact]
+    public async Task Broken_document_signature_cannot_be_timestamped()
+    {
+        await using var factory = new DocumentApiFactory();
+        using var owner = await LoginAsync(factory, "employee@documentflow.local", "DevEmployee!2026");
+        using var manager = await LoginAsync(factory, "manager@documentflow.local", "DevManager!2026");
+        var (documentId, versionId) = await CreateApprovedDocumentAsync(factory, owner, manager, "Broken signature no timestamp");
+        using var sign = await manager.PostAsync(SignRoute(documentId, versionId), content: null);
+        Assert.Equal(HttpStatusCode.OK, sign.StatusCode);
+        using var signJson = JsonDocument.Parse(await sign.Content.ReadAsStringAsync());
+        var signatureId = signJson.RootElement.GetProperty("id").GetGuid();
+        var brokenSignature = Convert.ToBase64String(new byte[] { 8, 7, 6 });
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+        await db.DocumentSignatures.Where(x => x.Id == signatureId)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.SignatureValue, brokenSignature));
+        using var response = await manager.PostAsync(TimestampRoute(signatureId), content: null);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Empty(await db.DocumentTimestamps.Where(x => x.DocumentSignatureId == signatureId).ToListAsync());
+        Assert.Equal(0, await db.AuditLogs.CountAsync(x => x.Action == AuditAction.TimestampCreated));
+    }
+
+    [Fact]
+    public async Task Local_provider_makes_genuine_cms_token_and_rejects_nonce_or_token_tampering()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"documentflow-tsa-test-{Guid.NewGuid():N}");
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Timestamping:Local:KeyDirectory"] = directory
+            }).Build();
+            using var provider = new LocalTimestampProvider(configuration);
+            var signature = RandomNumberGenerator.GetBytes(256);
+            var nonce = RandomNumberGenerator.GetBytes(20);
+            var issued = await provider.IssueAsync(signature, nonce, CancellationToken.None);
+            Assert.Equal("Valid", provider.Verify(issued.Token, signature, nonce).Result);
+            Assert.Equal("Invalid", provider.Verify(issued.Token, signature, RandomNumberGenerator.GetBytes(20)).Result);
+            var tamperedToken = issued.Token.ToArray();
+            tamperedToken[^1] ^= 1;
+            Assert.NotEqual("Valid", provider.Verify(tamperedToken, signature, nonce).Result);
+            Assert.StartsWith("3082", Convert.ToHexString(issued.Token));
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true); }
+    }
+
     private static async Task<(Guid DocumentId, Guid VersionId)> CreateApprovedDocumentAsync(DocumentApiFactory factory, HttpClient owner, HttpClient manager, string title, string managerEmail = "manager@documentflow.local")
     {
         using var created = await UploadAsync(owner, title, [1, 2, 3]);
@@ -257,4 +391,7 @@ public sealed class SignatureApiTests
     private static string SignRoute(Guid documentId, Guid versionId) => $"/api/documents/{documentId}/versions/{versionId}/sign";
     private static string SignaturesRoute(Guid documentId, Guid versionId) => $"/api/documents/{documentId}/versions/{versionId}/signatures";
     private static string VerifyRoute(Guid documentId, Guid versionId) => $"/api/documents/{documentId}/versions/{versionId}/verify";
+    private static string TimestampRoute(Guid signatureId) => $"/api/signatures/{signatureId}/timestamp";
+    private static string TimestampListRoute(Guid signatureId) => $"/api/signatures/{signatureId}/timestamps";
+    private static string TimestampVerifyRoute(Guid signatureId, Guid timestampId) => $"/api/signatures/{signatureId}/timestamps/{timestampId}/verify";
 }

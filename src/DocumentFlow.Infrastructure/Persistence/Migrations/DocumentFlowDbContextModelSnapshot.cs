@@ -237,6 +237,67 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.ToTable("document_signatures", (string)null);
                 });
 
+            modelBuilder.Entity("DocumentFlow.Domain.DocumentTimestamp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DocumentSignatureId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("GenTimeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MessageImprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("MessageImprintAlgorithm")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Nonce")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ProviderType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("TimestampAuthority")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("TimestampToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentSignatureId")
+                        .IsUnique();
+
+                    b.HasIndex("GenTimeUtc")
+                        .IsDescending();
+
+                    b.ToTable("document_timestamps", (string)null);
+                });
+
             modelBuilder.Entity("DocumentFlow.Domain.DocumentVersion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -440,6 +501,17 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.Navigation("DocumentVersion");
 
                     b.Navigation("SignedByUser");
+                });
+
+            modelBuilder.Entity("DocumentFlow.Domain.DocumentTimestamp", b =>
+                {
+                    b.HasOne("DocumentFlow.Domain.DocumentSignature", "DocumentSignature")
+                        .WithOne()
+                        .HasForeignKey("DocumentFlow.Domain.DocumentTimestamp", "DocumentSignatureId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DocumentSignature");
                 });
 
             modelBuilder.Entity("DocumentFlow.Domain.DocumentVersion", b =>

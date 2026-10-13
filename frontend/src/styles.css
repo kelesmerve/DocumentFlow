@@ -333,6 +333,9 @@ button { color: inherit; }
 .signature-panel-heading > strong { display: flex; align-items: center; gap: 6px; color: #516474; font-size: 11px; font-weight: 620; }
 .signature-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid #e9edf0; border-radius: 4px; background: #fbfcfd; }
 .signature-entry-actions { display: flex; align-items: center; gap: 12px; }
+.timestamp-panel { display: grid; gap: 6px; width: 100%; padding: 8px 0 0 12px; border-top: 1px solid #edf0f3; }
+.timestamp-entry { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: #657581; font-size: 10px; }
+.timestamp-entry > span:first-child { margin-right: auto; }
 .signature-person { display: grid; gap: 3px; min-width: 0; }
 .signature-person strong { color: #354654; font-size: 11px; font-weight: 600; }
 .signature-person span, .signature-muted { color: #82909b; font-size: 10px; }
