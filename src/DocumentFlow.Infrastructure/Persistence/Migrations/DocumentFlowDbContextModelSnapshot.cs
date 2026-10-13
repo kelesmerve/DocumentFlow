@@ -198,6 +198,13 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Direct");
+
                     b.Property<string>("PublicKeyFingerprint")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -348,6 +355,63 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("document_versions", (string)null);
+                });
+
+            modelBuilder.Entity("DocumentFlow.Domain.MobileSignatureRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DocumentSignatureId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DocumentVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ManagerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("DocumentSignatureId")
+                        .IsUnique();
+
+                    b.HasIndex("DocumentId", "DocumentVersionId");
+
+                    b.HasIndex("DocumentVersionId", "ManagerId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Pending'");
+
+                    b.HasIndex("ManagerId", "Status", "CreatedAtUtc")
+                        .IsDescending(false, false, true);
+
+                    b.ToTable("mobile_signature_requests", (string)null);
                 });
 
             modelBuilder.Entity("DocumentFlow.Domain.User", b =>
@@ -531,6 +595,41 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.Navigation("Document");
 
                     b.Navigation("UploadedByUser");
+                });
+
+            modelBuilder.Entity("DocumentFlow.Domain.MobileSignatureRequest", b =>
+                {
+                    b.HasOne("DocumentFlow.Domain.Document", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DocumentFlow.Domain.DocumentSignature", "DocumentSignature")
+                        .WithMany()
+                        .HasForeignKey("DocumentSignatureId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DocumentFlow.Domain.User", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DocumentFlow.Domain.DocumentVersion", "DocumentVersion")
+                        .WithMany()
+                        .HasForeignKey("DocumentId", "DocumentVersionId")
+                        .HasPrincipalKey("DocumentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Document");
+
+                    b.Navigation("DocumentSignature");
+
+                    b.Navigation("DocumentVersion");
+
+                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("DocumentFlow.Domain.Document", b =>

@@ -6,7 +6,7 @@ public sealed class DocumentSignature
 
     public DocumentSignature(Guid id, Guid documentId, Guid documentVersionId, Guid signedByUserId,
         string signatureAlgorithm, string hashAlgorithm, string documentHash, string signatureValue,
-        string publicKeyFingerprint, DateTime signedAtUtc)
+        string publicKeyFingerprint, DateTime signedAtUtc, SignatureMethod method = SignatureMethod.Direct)
     {
         Id = id;
         DocumentId = documentId;
@@ -18,6 +18,7 @@ public sealed class DocumentSignature
         SignatureValue = signatureValue;
         PublicKeyFingerprint = publicKeyFingerprint;
         SignedAtUtc = DateTime.SpecifyKind(signedAtUtc, DateTimeKind.Utc);
+        Method = method;
     }
 
     public Guid Id { get; private set; }
@@ -30,6 +31,7 @@ public sealed class DocumentSignature
     public string SignatureValue { get; private set; } = string.Empty;
     public string PublicKeyFingerprint { get; private set; } = string.Empty;
     public DateTime SignedAtUtc { get; private set; }
+    public SignatureMethod Method { get; private set; }
 
     public Document Document { get; private set; } = null!;
     public DocumentVersion DocumentVersion { get; private set; } = null!;

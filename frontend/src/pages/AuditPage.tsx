@@ -13,6 +13,8 @@ const actions: { value: AuditAction; label: string }[] = [
   { value: 'ApprovalRejected', label: 'Reddedildi' }, { value: 'RevisionRequested', label: 'Revizyon istendi' },
   { value: 'DocumentDownloaded', label: 'Dosya indirildi' },
   { value: 'DocumentSigned', label: 'Belge imzalandı' }, { value: 'TimestampCreated', label: 'Zaman damgası oluşturuldu' },
+  { value: 'MobileSignatureRequested', label: 'Mobil imza talep edildi' }, { value: 'MobileSignatureApproved', label: 'Mobil imza onaylandı' },
+  { value: 'MobileSignatureRejected', label: 'Mobil imza reddedildi' }, { value: 'MobileSignatureCompleted', label: 'Mobil imza tamamlandı' },
 ]
 
 export function AuditPage() {

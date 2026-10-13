@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { BadgeCheck, Clock3, LoaderCircle, PenLine, ShieldCheck, ShieldQuestion, ShieldX } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { signaturesApi } from '../api/signatures'
+import { mobileSignaturesApi } from '../api/mobileSignatures'
 import { apiErrorMessage } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { formatDate } from '../utils/format'
@@ -10,6 +12,7 @@ import type { DocumentVersion, SignatureSummary, SignatureVerification } from '.
 export function VersionSignatures({ documentId, version }: { documentId: string; version: DocumentVersion }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const signatureKey = ['signatures', documentId, version.id]
   const verifyKey = ['signature-verification', documentId, version.id]
@@ -22,11 +25,18 @@ export function VersionSignatures({ documentId, version }: { documentId: string;
       await Promise.all([queryClient.invalidateQueries({ queryKey: signatureKey }), queryClient.invalidateQueries({ queryKey: verifyKey })])
     },
   })
+  const mobileRequest = useMutation({
+    mutationFn: () => mobileSignaturesApi.create(documentId, version.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['mobile-signature-requests'] })
+      navigate('/mobile-sign')
+    },
+  })
   const alreadySigned = Boolean(signatures.data?.items.some((item) => item.signedByUserId.toLowerCase() === user?.id.toLowerCase()))
 
   return <div className="signature-panel">
     <div className="signature-panel-heading"><strong><BadgeCheck size={15} />Dijital imza</strong>
-      {signatures.data?.canSign && !alreadySigned && <button type="button" className="button button-secondary button-small" onClick={() => setConfirmOpen(true)} disabled={sign.isPending}><PenLine size={14} />Dijital Olarak İmzala</button>}
+      {signatures.data?.canSign && !alreadySigned && <div className="signature-entry-actions"><button type="button" className="button button-secondary button-small" onClick={() => setConfirmOpen(true)} disabled={sign.isPending}><PenLine size={14} />Dijital Olarak İmzala</button><button type="button" className="button button-secondary button-small" onClick={() => mobileRequest.mutate()} disabled={mobileRequest.isPending}><PenLine size={14} />Mobil İmza İste</button></div>}
     </div>
     {signatures.isPending && <span className="signature-muted">İmza durumu yükleniyor…</span>}
     {signatures.isError && <span className="signature-error">İmza durumu alınamadı.</span>}
@@ -34,12 +44,14 @@ export function VersionSignatures({ documentId, version }: { documentId: string;
     {signatures.data?.items.map((item) => {
       const result = verification.data?.find((entry) => entry.signatureId === item.id)
       return <div className="signature-entry" key={item.id}>
-        <div className="signature-person"><strong>{item.signedByName}</strong><span>{formatDate(item.signedAtUtc)} · {item.signatureAlgorithm} · {item.hashAlgorithm}</span></div>
+        <div className="signature-person"><strong>{item.signedByName}</strong><span>{formatDate(item.signedAtUtc)} · {item.signatureAlgorithm} · {item.hashAlgorithm} · {item.method === 'MobileSimulation' ? 'Mobil simülasyon' : 'Dijital imza'}</span></div>
         <div className="signature-entry-actions"><VerificationResult result={result} loading={verification.isFetching} /><button type="button" className="text-button" onClick={() => void verification.refetch()} disabled={verification.isFetching}>İmzayı doğrula</button></div>
         <SignatureTimestamp signature={item} canRequest={user?.role === 'Admin' || item.signedByUserId.toLowerCase() === user?.id.toLowerCase()} />
       </div>
     })}
     {sign.isError && <div className="signature-error" role="alert">{apiErrorMessage(sign.error, 'Belge imzalanamadı.')}</div>}
+    {mobileRequest.isError && <div className="signature-error" role="alert">{apiErrorMessage(mobileRequest.error, 'Mobil imza talebi oluşturulamadı.')}</div>}
+    {signatures.data?.canSign && !alreadySigned && <p className="signature-disclaimer">Mobil imza geliştirme amaçlı simülasyondur; gerçek operatör mobil imzası değildir.</p>}
     {sign.isSuccess && <div className="signature-success" role="status">Belge versiyonu imzalandı.</div>}
     {verification.isError && signatures.data?.items.length ? <div className="signature-error" role="alert">İmza doğrulaması alınamadı.</div> : null}
     {signatures.data?.items.length ? <p className="signature-disclaimer">Doğrulama dosya bütünlüğünü ve kayıtlı anahtarla ilişkiyi kontrol eder; gerçek kişi kimliği veya hukuki geçerlilik garantisi vermez.</p> : null}
@@ -52,6 +64,7 @@ export function VersionSignatures({ documentId, version }: { documentId: string;
     </section></div>}
   </div>
 }
+
 
 function SignatureTimestamp({ signature, canRequest }: { signature: SignatureSummary; canRequest: boolean }) {
   const queryClient = useQueryClient()

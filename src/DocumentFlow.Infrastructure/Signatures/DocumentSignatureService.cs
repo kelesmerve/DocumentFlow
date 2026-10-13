@@ -12,12 +12,37 @@ public sealed class DocumentSignatureService(DocumentFlowDbContext db, IFileStor
 {
     public async Task<SignatureSummary> SignAsync(Guid documentId, Guid versionId, Guid userId, CancellationToken cancellationToken)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var result = await SignCoreAsync(documentId, versionId, userId, null, SignatureMethod.Direct, true, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch (DbUpdateException exception) when (exception.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            db.ChangeTracker.Clear();
+            var concurrent = await FindSummaryAsync(documentId, versionId, userId, cancellationToken);
+            if (concurrent is not null) return concurrent;
+            throw;
+        }
+    }
+
+    public Task<SignatureSummary> SignForMobileAsync(Guid documentId, Guid versionId, Guid userId, string expectedHash, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("Mobile signing requires a database transaction.");
+        return SignCoreAsync(documentId, versionId, userId, expectedHash, SignatureMethod.MobileSimulation, false, cancellationToken);
+    }
+
+    private async Task<SignatureSummary> SignCoreAsync(Guid documentId, Guid versionId, Guid userId, string? expectedHash,
+        SignatureMethod method, bool returnExisting, CancellationToken cancellationToken)
+    {
         var signer = await db.Users.AsNoTracking().Where(x => x.Id == userId)
             .Select(x => new { x.Id, x.FirstName, x.LastName, x.Role, x.IsActive }).SingleOrDefaultAsync(cancellationToken);
         if (signer is null || !signer.IsActive || signer.Role != UserRole.Manager)
             throw new SignatureAccessException("Yalnızca aktif yöneticiler belge imzalayabilir.");
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var version = await db.DocumentVersions.AsNoTracking()
             .Where(x => x.Id == versionId && x.DocumentId == documentId)
             .Select(x => new { x.Id, x.DocumentId, x.VersionNumber, x.StoredFileName, x.FileHash, DocumentStatus = x.Document.Status })
@@ -36,12 +61,14 @@ public sealed class DocumentSignatureService(DocumentFlowDbContext db, IFileStor
         var hash = await SHA256.HashDataAsync(file, cancellationToken);
         var hashHex = Convert.ToHexString(hash);
         if (!FixedHexEquals(hashHex, version.FileHash)) throw new SignatureIntegrityException("Dosya içeriği kayıtlı SHA-256 değeriyle eşleşmiyor.");
+        if (expectedHash is not null && !FixedHexEquals(hashHex, expectedHash))
+            throw new SignatureIntegrityException("Dosya içeriği mobil imza talebindeki SHA-256 değeriyle eşleşmiyor.");
 
         var existing = await FindSummaryAsync(documentId, versionId, userId, cancellationToken);
         if (existing is not null)
         {
-            await transaction.CommitAsync(cancellationToken);
-            return existing;
+            if (returnExisting) return existing;
+            throw new SignatureStateException("Bu versiyon kullanıcı tarafından zaten imzalanmış.");
         }
 
         var key = keys.GetCurrentSigningKey();
@@ -50,23 +77,11 @@ public sealed class DocumentSignatureService(DocumentFlowDbContext db, IFileStor
         var signatureBytes = privateKey.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
         var now = DateTime.UtcNow;
         var signature = new DocumentSignature(Guid.NewGuid(), documentId, versionId, userId,
-            "RSA-PSS", "SHA-256", hashHex, Convert.ToBase64String(signatureBytes), key.Fingerprint, now);
+            "RSA-PSS", "SHA-256", hashHex, Convert.ToBase64String(signatureBytes), key.Fingerprint, now, method);
         db.DocumentSignatures.Add(signature);
         db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), userId, AuditAction.DocumentSigned, documentId,
             versionId, null, $"v{version.VersionNumber} dijital olarak imzalandı.", now));
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-        }
-        catch (DbUpdateException exception) when (exception.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            await transaction.RollbackAsync(CancellationToken.None);
-            db.ChangeTracker.Clear();
-            var concurrent = await FindSummaryAsync(documentId, versionId, userId, cancellationToken);
-            if (concurrent is not null) return concurrent;
-            throw;
-        }
+        await db.SaveChangesAsync(cancellationToken);
         return ToSummary(signature, signer.FirstName + " " + signer.LastName);
     }
 
@@ -77,7 +92,7 @@ public sealed class DocumentSignatureService(DocumentFlowDbContext db, IFileStor
             .OrderBy(x => x.SignedAtUtc).ThenBy(x => x.Id)
             .Select(x => new SignatureSummary(x.Id, x.DocumentId, x.DocumentVersionId, x.SignedByUserId,
                 x.SignedByUser.FirstName + " " + x.SignedByUser.LastName, x.SignatureAlgorithm, x.HashAlgorithm,
-                x.DocumentHash, x.PublicKeyFingerprint, x.SignedAtUtc))
+                x.DocumentHash, x.PublicKeyFingerprint, x.SignedAtUtc, x.Method))
             .ToListAsync(cancellationToken);
         var canSign = await db.Users.AnyAsync(x => x.Id == userId && x.IsActive && x.Role == UserRole.Manager, cancellationToken) &&
             await db.Documents.AnyAsync(x => x.Id == documentId && x.Status == DocumentStatus.Approved, cancellationToken) &&
@@ -165,12 +180,12 @@ public sealed class DocumentSignatureService(DocumentFlowDbContext db, IFileStor
         await db.DocumentSignatures.AsNoTracking().Where(x => x.DocumentId == documentId && x.DocumentVersionId == versionId && x.SignedByUserId == userId)
             .Select(x => new SignatureSummary(x.Id, x.DocumentId, x.DocumentVersionId, x.SignedByUserId,
                 x.SignedByUser.FirstName + " " + x.SignedByUser.LastName, x.SignatureAlgorithm, x.HashAlgorithm,
-                x.DocumentHash, x.PublicKeyFingerprint, x.SignedAtUtc)).SingleOrDefaultAsync(cancellationToken);
+                x.DocumentHash, x.PublicKeyFingerprint, x.SignedAtUtc, x.Method)).SingleOrDefaultAsync(cancellationToken);
 
     private static SignatureSummary ToSummary(DocumentSignature signature, string signerName) => new(
         signature.Id, signature.DocumentId, signature.DocumentVersionId, signature.SignedByUserId, signerName,
         signature.SignatureAlgorithm, signature.HashAlgorithm, signature.DocumentHash,
-        signature.PublicKeyFingerprint, signature.SignedAtUtc);
+        signature.PublicKeyFingerprint, signature.SignedAtUtc, signature.Method);
 
     private static bool FixedHexEquals(string left, string right)
     {

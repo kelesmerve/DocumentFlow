@@ -1,3 +1,5 @@
+using DocumentFlow.Domain;
+
 namespace DocumentFlow.Application.Signatures;
 
 public sealed record SignatureSummary(
@@ -10,7 +12,8 @@ public sealed record SignatureSummary(
     string HashAlgorithm,
     string DocumentHash,
     string PublicKeyFingerprint,
-    DateTime SignedAtUtc);
+    DateTime SignedAtUtc,
+    SignatureMethod Method = SignatureMethod.Direct);
 
 public sealed record SignatureVerification(
     Guid SignatureId,
@@ -28,6 +31,7 @@ public sealed record SignatureList(IReadOnlyList<SignatureSummary> Items, bool C
 public interface IDocumentSignatureService
 {
     Task<SignatureSummary> SignAsync(Guid documentId, Guid versionId, Guid userId, CancellationToken cancellationToken);
+    Task<SignatureSummary> SignForMobileAsync(Guid documentId, Guid versionId, Guid userId, string expectedHash, CancellationToken cancellationToken);
     Task<SignatureList?> ListAsync(Guid documentId, Guid versionId, Guid userId, bool isAdmin, CancellationToken cancellationToken);
     Task<IReadOnlyList<SignatureVerification>?> VerifyAsync(Guid documentId, Guid versionId, Guid userId, bool isAdmin, CancellationToken cancellationToken);
 }

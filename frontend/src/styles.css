@@ -324,6 +324,7 @@ button { color: inherit; }
 .workflow-form { display: grid; gap: 11px; padding: 20px 21px; }
 .workflow-form label { margin-top: 5px; color: #4d5e6a; font-size: 11px; font-weight: 600; }
 .workflow-form select, .workflow-form textarea { width: 100%; border: 1px solid #d4dde3; border-radius: 4px; padding: 10px 11px; color: #334451; background: white; font: inherit; font-size: 12px; }
+.workflow-form input { width: 100%; border: 1px solid #d4dde3; border-radius: 4px; padding: 10px 11px; color: #334451; background: white; font: inherit; font-size: 12px; }
 .workflow-form select:focus, .workflow-form textarea:focus { outline: 3px solid rgb(73 111 139 / 18%); border-color: #7897ad; }
 .dialog-intro { margin: 0 0 5px; color: #73818c; font-size: 12px; line-height: 1.6; }
 .workflow-form footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
@@ -348,3 +349,12 @@ button { color: inherit; }
 .signature-dialog { width: min(100%, 430px); }
 @media (max-width: 650px) { .signature-panel { grid-column: 1 / -1; } .signature-entry { align-items: flex-start; flex-direction: column; } .signature-entry-actions { flex-wrap: wrap; } }
 @media (max-width: 600px) { .process-section, .approval-request-card, .approval-review-card { padding: 17px; } .approval-review-card { align-items: flex-start; flex-direction: column; } .decision-actions { justify-content: stretch; flex-wrap: wrap; } .decision-actions .button { flex: 1 1 30%; justify-content: center; } }
+
+.mobile-simulation-note { max-width: 720px; margin: 0 0 20px; padding: 11px 14px; border-left: 2px solid #9babbb; color: #5d6d79; background: #f3f6f8; font-size: 11px; line-height: 1.6; }
+.mobile-request-list { display: grid; gap: 12px; max-width: 800px; }
+.mobile-request-card { padding: 19px 21px; border: 1px solid var(--border); border-radius: 5px; background: #fff; }
+.mobile-request-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.mobile-request-head h2 { margin: 6px 0 0; color: #354654; font-size: 14px; font-weight: 630; }
+.mobile-request-meta { display: flex; flex-wrap: wrap; gap: 8px 19px; margin-top: 14px; color: #748390; font-size: 11px; }
+.mobile-request-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+@media (max-width: 600px) { .mobile-request-card { padding: 16px; } .mobile-request-actions .button { flex: 1 1 145px; justify-content: center; } .signature-panel-heading { align-items: flex-start; flex-direction: column; } }

@@ -10,5 +10,9 @@ public enum AuditAction
     RevisionRequested,
     DocumentDownloaded,
     DocumentSigned,
-    TimestampCreated
+    TimestampCreated,
+    MobileSignatureRequested,
+    MobileSignatureApproved,
+    MobileSignatureRejected,
+    MobileSignatureCompleted
 }

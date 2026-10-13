@@ -16,6 +16,7 @@ public sealed class DocumentSignatureConfiguration : IEntityTypeConfiguration<Do
         builder.Property(x => x.SignatureValue).HasMaxLength(2048).IsRequired();
         builder.Property(x => x.PublicKeyFingerprint).HasMaxLength(64).IsFixedLength().IsRequired();
         builder.Property(x => x.SignedAtUtc).IsRequired();
+        builder.Property(x => x.Method).HasConversion<string>().HasMaxLength(32).HasDefaultValue(SignatureMethod.Direct).IsRequired();
 
         builder.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.DocumentVersion).WithMany()

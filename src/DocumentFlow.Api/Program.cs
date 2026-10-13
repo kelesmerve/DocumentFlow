@@ -50,6 +50,7 @@ builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
 builder.Services.AddSingleton<IRsaSigningKeyStore>(services => new RsaSigningKeyStore(
     builder.Environment.IsDevelopment(), services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()));
 builder.Services.AddScoped<IDocumentSignatureService, DocumentSignatureService>();
+builder.Services.AddScoped<IMobileSignatureService, MobileSignatureService>();
 var timestampProviderType = builder.Configuration["Timestamping:ProviderType"] ?? (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Test") ? "Local" : "ExternalRfc3161");
 if (timestampProviderType == "Local")
 {
