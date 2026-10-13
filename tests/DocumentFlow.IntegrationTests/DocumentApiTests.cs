@@ -40,6 +40,9 @@ public sealed class DocumentApiTests
         var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
         var stored = await db.DocumentVersions.AsNoTracking().SingleAsync(x => x.DocumentId == id);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)), stored.FileHash);
+        var creationAudit = await db.AuditLogs.AsNoTracking().Where(x => x.DocumentId == id).OrderBy(x => x.CreatedAtUtc).ToListAsync();
+        Assert.Equal([AuditAction.DocumentCreated, AuditAction.DocumentVersionUploaded], creationAudit.Select(x => x.Action));
+        Assert.Equal(stored.Id, creationAudit[1].DocumentVersionId);
         Assert.DoesNotContain("/storage/", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
     }
 
@@ -85,6 +88,11 @@ public sealed class DocumentApiTests
         Assert.Contains(adminListJson.RootElement.GetProperty("items").EnumerateArray(), x => x.GetProperty("id").GetGuid() == id);
         using var adminDownload = await admin.GetAsync($"/api/documents/{id}/versions/2/download");
         Assert.Equal(HttpStatusCode.OK, adminDownload.StatusCode);
+        await using (var auditScope = factory.Services.CreateAsyncScope())
+        {
+            var auditDb = auditScope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+            Assert.Contains(await auditDb.AuditLogs.AsNoTracking().Where(x => x.DocumentId == id).ToListAsync(), x => x.Action == AuditAction.DocumentDownloaded && x.DocumentVersionId != null);
+        }
     }
 
     [Fact]
@@ -223,6 +231,11 @@ public sealed class DocumentApiTests
         var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
         var requests = await db.ApprovalRequests.AsNoTracking().Where(x => x.DocumentId == docId).OrderBy(x => x.CreatedAtUtc).ToListAsync();
         Assert.Equal(2, requests.Count);
+        var auditRows = await db.AuditLogs.AsNoTracking().Where(x => x.DocumentId == docId).ToListAsync();
+        Assert.Contains(auditRows, x => x.Action == AuditAction.ApprovalSubmitted && x.ApprovalRequestId == requests[0].Id && x.DocumentVersionId == requests[0].DocumentVersionId);
+        Assert.Contains(auditRows, x => x.Action == AuditAction.RevisionRequested && x.ApprovalRequestId == requests[0].Id);
+        Assert.Contains(auditRows, x => x.Action == AuditAction.ApprovalSubmitted && x.ApprovalRequestId == requests[1].Id && x.DocumentVersionId == requests[1].DocumentVersionId);
+        Assert.Contains(auditRows, x => x.Action == AuditAction.ApprovalApproved && x.ApprovalRequestId == requests[1].Id);
         var v1Id = await db.DocumentVersions.AsNoTracking().Where(x => x.DocumentId == docId && x.VersionNumber == 1).Select(x => x.Id).SingleAsync();
         Assert.Equal(v1Id, requests[0].DocumentVersionId);
         Assert.Equal(ApprovalStatus.RevisionRequested, requests[0].Status);
@@ -364,8 +377,96 @@ public sealed class DocumentApiTests
         using var document = await owner.GetAsync($"/api/documents/{id}");
         using var json = JsonDocument.Parse(await document.Content.ReadAsStringAsync());
         Assert.Equal("Rejected", json.RootElement.GetProperty("document").GetProperty("status").GetString());
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+            Assert.Contains(await db.AuditLogs.AsNoTracking().Where(x => x.DocumentId == id).ToListAsync(), x => x.Action == AuditAction.ApprovalRejected);
+        }
         using var rejectedVersion = await UploadVersionAsync(owner, id, "v2.pdf", PdfType, [2]);
         Assert.Equal(HttpStatusCode.BadRequest, rejectedVersion.StatusCode);
+    }
+
+    [Fact]
+    public async Task Audit_api_is_admin_only_and_supports_filters_pagination_and_safe_projection()
+    {
+        await using var factory = new DocumentApiFactory();
+        using var employee = await LoginAsync(factory, "employee@documentflow.local", "DevEmployee!2026");
+        using var manager = await LoginAsync(factory, "manager@documentflow.local", "DevManager!2026");
+        using var admin = await LoginAsync(factory, "admin@documentflow.local", "DevAdmin!2026");
+        Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync("/api/audit")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.GetAsync("/api/audit")).StatusCode);
+
+        using var first = await UploadDocumentAsync(employee, "Audit page A", "Audit", "a.pdf", PdfType, [1]);
+        using var firstBody = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
+        var firstId = firstBody.RootElement.GetProperty("document").GetProperty("id").GetGuid();
+        var firstNumber = firstBody.RootElement.GetProperty("document").GetProperty("documentNumber").GetString()!;
+        using var second = await UploadDocumentAsync(employee, "Audit page B", "Audit", "b.pdf", PdfType, [2]);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        var employeeId = await GetUserIdAsync(factory, "employee@documentflow.local");
+
+        using var all = await admin.GetAsync("/api/audit?page=1&pageSize=2");
+        Assert.Equal(HttpStatusCode.OK, all.StatusCode);
+        using var allJson = JsonDocument.Parse(await all.Content.ReadAsStringAsync());
+        Assert.Equal(2, allJson.RootElement.GetProperty("items").GetArrayLength());
+        Assert.Equal(2, allJson.RootElement.GetProperty("pageSize").GetInt32());
+        var rows = allJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.True(DateTime.Parse(rows[0].GetProperty("createdAtUtc").GetString()!) >= DateTime.Parse(rows[1].GetProperty("createdAtUtc").GetString()!));
+        using var nextPage = await admin.GetAsync("/api/audit?page=2&pageSize=2");
+        using var nextPageJson = JsonDocument.Parse(await nextPage.Content.ReadAsStringAsync());
+        var nextPageRows = nextPageJson.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(2, nextPageRows.Length);
+        Assert.True(DateTime.Parse(rows[1].GetProperty("createdAtUtc").GetString()!) >= DateTime.Parse(nextPageRows[0].GetProperty("createdAtUtc").GetString()!));
+        Assert.DoesNotContain(nextPageRows, next => rows.Any(firstPageRow => firstPageRow.GetProperty("id").GetGuid() == next.GetProperty("id").GetGuid()));
+        Assert.DoesNotContain("passwordHash", allJson.RootElement.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("accessToken", allJson.RootElement.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DevEmployee!2026", allJson.RootElement.ToString(), StringComparison.Ordinal);
+
+        using var byAction = await admin.GetAsync("/api/audit?action=DocumentCreated");
+        using var byActionJson = JsonDocument.Parse(await byAction.Content.ReadAsStringAsync());
+        Assert.All(byActionJson.RootElement.GetProperty("items").EnumerateArray(), x => Assert.Equal("DocumentCreated", x.GetProperty("action").GetString()));
+        using var byUser = await admin.GetAsync($"/api/audit?userId={employeeId}");
+        using var byUserJson = JsonDocument.Parse(await byUser.Content.ReadAsStringAsync());
+        Assert.All(byUserJson.RootElement.GetProperty("items").EnumerateArray(), x => Assert.Equal(employeeId, x.GetProperty("userId").GetGuid()));
+        using var byDocument = await admin.GetAsync($"/api/audit?documentNumber={Uri.EscapeDataString(firstNumber)}");
+        using var byDocumentJson = JsonDocument.Parse(await byDocument.Content.ReadAsStringAsync());
+        Assert.NotEmpty(byDocumentJson.RootElement.GetProperty("items").EnumerateArray());
+        Assert.All(byDocumentJson.RootElement.GetProperty("items").EnumerateArray(), x => Assert.Equal(firstId, x.GetProperty("documentId").GetGuid()));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+        Assert.Contains(await db.AuditLogs.AsNoTracking().Where(x => x.DocumentId == firstId).ToListAsync(), x => x.Action == AuditAction.DocumentCreated);
+    }
+
+    [Fact]
+    public async Task Manager_download_writes_audit_with_actor_document_and_exact_version()
+    {
+        await using var factory = new DocumentApiFactory();
+        using var owner = await LoginAsync(factory, "employee@documentflow.local", "DevEmployee!2026");
+        using var manager = await LoginAsync(factory, "manager@documentflow.local", "DevManager!2026");
+        using var createdResponse = await UploadDocumentAsync(owner, "Manager download audit", "Audit", "version.pdf", PdfType, [1, 2, 3]);
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        using var created = JsonDocument.Parse(await createdResponse.Content.ReadAsStringAsync());
+        var documentId = created.RootElement.GetProperty("document").GetProperty("id").GetGuid();
+
+        var managerId = await GetUserIdAsync(factory, "manager@documentflow.local");
+        using var submit = await owner.PostAsJsonAsync($"/api/documents/{documentId}/submit-for-approval", new { managerId });
+        Assert.Equal(HttpStatusCode.OK, submit.StatusCode);
+        Guid versionId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+            versionId = await db.DocumentVersions.AsNoTracking().Where(x => x.DocumentId == documentId && x.VersionNumber == 1).Select(x => x.Id).SingleAsync();
+        }
+
+        using var download = await manager.GetAsync($"/api/documents/{documentId}/versions/1/download");
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        await using var verifyScope = factory.Services.CreateAsyncScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+        var audit = await verifyDb.AuditLogs.AsNoTracking().SingleAsync(x => x.Action == AuditAction.DocumentDownloaded && x.DocumentId == documentId);
+        Assert.Equal(managerId, audit.UserId);
+        Assert.Equal(documentId, audit.DocumentId);
+        Assert.Equal(versionId, audit.DocumentVersionId);
     }
 
     private static async Task<HttpClient> LoginAsync(WebApplicationFactory<Program> factory, string email, string password)

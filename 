@@ -1,0 +1,9 @@
+warning: in the working copy of 'frontend/src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/layout/AppShell.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/styles.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/types/api.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/DocumentFlow.Api/Program.cs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/DocumentFlow.Infrastructure/Approvals/ApprovalService.cs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/DocumentFlow.Infrastructure/Documents/DocumentService.cs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/DocumentFlow.Infrastructure/Persistence/DocumentFlowDbContext.cs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/DocumentFlow.IntegrationTests/DocumentApiTests.cs', LF will be replaced by CRLF the next time Git touches it

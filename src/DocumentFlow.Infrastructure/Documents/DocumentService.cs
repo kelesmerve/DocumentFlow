@@ -31,6 +31,8 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
             var version = CreateVersion(documentId, versionNumber, upload, file, storedName, ownerId, now);
             document.AddVersion(version, now);
             db.Documents.Add(document);
+            db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), ownerId, AuditAction.DocumentCreated, documentId, null, null, "Belge oluşturuldu.", now));
+            db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), ownerId, AuditAction.DocumentVersionUploaded, documentId, version.Id, null, "v1 dosya sürümü yüklendi.", now.AddMilliseconds(1)));
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return ToDetails(document, [version]);
@@ -78,11 +80,26 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
         var version = await db.DocumentVersions.AsNoTracking()
             .Where(x => x.DocumentId == documentId && x.VersionNumber == versionNumber &&
                 (isAdmin || x.Document.OwnerId == userId || db.ApprovalRequests.Any(a => a.DocumentVersionId == x.Id && a.AssignedToUserId == userId)))
-            .Select(x => new { x.VersionNumber, x.OriginalFileName, x.StoredFileName, x.ContentType })
+            .Select(x => new { x.Id, x.VersionNumber, x.OriginalFileName, x.StoredFileName, x.ContentType })
             .SingleOrDefaultAsync(cancellationToken);
         if (version is null) return null;
         var stream = await storage.OpenReadAsync(documentId, version.VersionNumber, version.StoredFileName, cancellationToken);
-        return stream is null ? null : new DocumentDownload(stream, version.ContentType, version.OriginalFileName);
+        if (stream is null) return null;
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), userId, AuditAction.DocumentDownloaded, documentId,
+                version.Id, null, $"v{version.VersionNumber} indirildi.", DateTime.UtcNow));
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new DocumentDownload(stream, version.ContentType, version.OriginalFileName);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            await stream.DisposeAsync();
+            throw;
+        }
     }
 
     public async Task<DocumentDetails?> AddVersionAsync(Guid documentId, Guid userId, DocumentUpload upload, CancellationToken cancellationToken)
@@ -110,6 +127,8 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
                 var version = CreateVersion(documentId, versionNumber, upload, file, storedName, userId, now);
                 db.DocumentVersions.Add(version);
                 document.AddVersion(version, now);
+                db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), userId, AuditAction.DocumentVersionUploaded, documentId,
+                    version.Id, null, $"v{versionNumber} dosya sürümü yüklendi.", now));
                 await db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 

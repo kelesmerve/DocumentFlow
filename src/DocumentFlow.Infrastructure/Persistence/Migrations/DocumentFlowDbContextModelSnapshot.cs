@@ -78,6 +78,54 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.ToTable("approval_requests", (string)null);
                 });
 
+            modelBuilder.Entity("DocumentFlow.Domain.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("ApprovalRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DocumentVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Action");
+
+                    b.HasIndex("ApprovalRequestId");
+
+                    b.HasIndex("CreatedAtUtc")
+                        .IsDescending();
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("DocumentId", "DocumentVersionId");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("DocumentFlow.Domain.Document", b =>
                 {
                     b.Property<Guid>("Id")
@@ -258,6 +306,39 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.Navigation("DocumentVersion");
 
                     b.Navigation("RequestedByUser");
+                });
+
+            modelBuilder.Entity("DocumentFlow.Domain.AuditLog", b =>
+                {
+                    b.HasOne("DocumentFlow.Domain.ApprovalRequest", "ApprovalRequest")
+                        .WithMany()
+                        .HasForeignKey("ApprovalRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DocumentFlow.Domain.Document", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DocumentFlow.Domain.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DocumentFlow.Domain.DocumentVersion", "DocumentVersion")
+                        .WithMany()
+                        .HasForeignKey("DocumentId", "DocumentVersionId")
+                        .HasPrincipalKey("DocumentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ApprovalRequest");
+
+                    b.Navigation("Document");
+
+                    b.Navigation("DocumentVersion");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DocumentFlow.Domain.Document", b =>

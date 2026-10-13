@@ -55,6 +55,8 @@ public sealed class ApprovalService(DocumentFlowDbContext db) : IApprovalService
         var request = new ApprovalRequest(Guid.NewGuid(), documentId, version.Id, ownerId, manager.Id, input.Comment, now);
         document.SubmitForApproval(now);
         db.ApprovalRequests.Add(request);
+        db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), ownerId, AuditAction.ApprovalSubmitted, documentId, version.Id,
+            request.Id, $"Belge {manager.FirstName} {manager.LastName} kullanıcısına onaya gönderildi.", now));
         try { await db.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken); }
         catch (DbUpdateException ex) when (ex.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         { throw new ApprovalInputException("This document already has a pending approval request."); }
@@ -75,6 +77,15 @@ public sealed class ApprovalService(DocumentFlowDbContext db) : IApprovalService
         var now = DateTime.UtcNow;
         request.Decide(decision, comment, now);
         document.ApplyDecision(decision switch { ApprovalStatus.Approved => DocumentStatus.Approved, ApprovalStatus.Rejected => DocumentStatus.Rejected, _ => DocumentStatus.RevisionRequested }, now);
+        var versionNumber = await db.DocumentVersions.Where(x => x.Id == request.DocumentVersionId).Select(x => x.VersionNumber).SingleAsync(cancellationToken);
+        var (action, description) = decision switch
+        {
+            ApprovalStatus.Approved => (AuditAction.ApprovalApproved, $"v{versionNumber} onaylandı."),
+            ApprovalStatus.Rejected => (AuditAction.ApprovalRejected, $"v{versionNumber} reddedildi."),
+            _ => (AuditAction.RevisionRequested, $"v{versionNumber} için revizyon istendi.")
+        };
+        db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), managerId, action, request.DocumentId, request.DocumentVersionId,
+            request.Id, description, now));
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return await GetAsync(id, managerId, false, cancellationToken);

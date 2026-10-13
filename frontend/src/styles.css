@@ -111,6 +111,12 @@ button { color: inherit; }
 .icon-link, .icon-button { width: 29px; height: 29px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 4px; color: #788695; background: transparent; cursor: pointer; }
 .icon-link:hover, .icon-button:hover:not(:disabled) { border-color: var(--border); color: var(--accent); background: #fff; }
 .list-toolbar { display: flex; justify-content: space-between; margin: -7px 0 11px; color: #7b8997; font-size: 11px; }
+.audit-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 22px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.audit-filters label { display: grid; gap: 6px; color: #697887; font-size: 11px; font-weight: 600; }
+.audit-filters select, .audit-filters input { min-width: 190px; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 5px; color: #344252; background: #fff; font: inherit; font-weight: 400; }
+.audit-user-email { display: block; margin-top: 3px; color: #82909e; font-size: 10px; }
+.audit-description { white-space: normal !important; min-width: 180px; }
+.audit-table { min-width: 900px; }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-top: 16px; color: #7c8996; font-size: 11px; }
 .empty-state { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 28px; border: 1px dashed #d7dee5; border-radius: 5px; background: rgba(255,255,255,.58); text-align: center; }
 .empty-mark { color: #9aa6b1; font-size: 22px; }

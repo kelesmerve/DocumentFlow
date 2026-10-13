@@ -70,6 +70,9 @@ export interface ApprovalDetails {
 export interface ApprovalInput { comment: string }
 export interface ApprovalPage { items: ApprovalSummary[]; page: number; pageSize: number; totalCount: number }
 export interface WorkflowEvent { kind: string; title: string; actor: string; detail: string | null; versionNumber: number | null; atUtc: string }
+export type AuditAction = 'DocumentCreated' | 'DocumentVersionUploaded' | 'ApprovalSubmitted' | 'ApprovalApproved' | 'ApprovalRejected' | 'RevisionRequested' | 'DocumentDownloaded'
+export interface AuditEntry { id: string; action: AuditAction; actionDisplayName: string; userId: string; userName: string; userEmail: string; documentId: string | null; documentNumber: string | null; documentTitle: string | null; documentVersionId: string | null; versionNumber: number | null; approvalRequestId: string | null; description: string | null; createdAtUtc: string }
+export interface AuditPage { items: AuditEntry[]; page: number; pageSize: number; totalCount: number }
 
 export interface ApiErrorBody {
   message?: string

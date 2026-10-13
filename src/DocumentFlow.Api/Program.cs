@@ -2,10 +2,12 @@ using System.Text;
 using System.Text.Json.Serialization;
 using DocumentFlow.Application.Authentication;
 using DocumentFlow.Application.Approvals;
+using DocumentFlow.Application.Audit;
 using DocumentFlow.Application.Documents;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Authentication;
 using DocumentFlow.Infrastructure.Approvals;
+using DocumentFlow.Infrastructure.Audit;
 using DocumentFlow.Infrastructure.Documents;
 using DocumentFlow.Infrastructure.Persistence;
 using DocumentFlow.Infrastructure.Storage;
@@ -40,6 +42,7 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<DevelopmentUserSeeder>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IApprovalService, ApprovalService>();
+builder.Services.AddScoped<IAuditQueryService, AuditQueryService>();
 builder.Services.AddSingleton<IFileStorage>(_ =>
 {
     var storagePath = builder.Configuration["FileStorage:RootPath"] ?? "storage";

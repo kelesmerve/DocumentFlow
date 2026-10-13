@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><FileSignature size={17} /><span>İmzalarım</span><small>Yakında</small></button>
         <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><Archive size={17} /><span>Arşiv</span><small>Yakında</small></button>
         <div className="nav-section-label management-label">YÖNETİM</div>
-        <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><ScrollText size={17} /><span>İşlem Geçmişi</span></button>
+        {user.role === 'Admin' ? <NavLink to="/audit" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><ScrollText size={17} /><span>İşlem Geçmişi</span></NavLink> : null}
       </nav>
       <div className="sidebar-footer">
         <div className="profile-avatar" aria-hidden="true">{initials(user.firstName, user.lastName)}</div>

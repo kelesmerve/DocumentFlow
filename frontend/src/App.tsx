@@ -8,6 +8,8 @@ import { NewDocumentPage } from './pages/NewDocumentPage'
 import { DocumentDetailsPage } from './pages/DocumentDetailsPage'
 import { ApprovalsPage } from './pages/ApprovalsPage'
 import { ApprovalDetailsPage } from './pages/ApprovalDetailsPage'
+import { AuditPage } from './pages/AuditPage'
+import { AdminOnly } from './auth/AdminOnly'
 
 export function App() {
   return <Routes>
@@ -19,6 +21,7 @@ export function App() {
       <Route path="/documents/:id" element={<DocumentDetailsPage />} />
       <Route path="/approvals" element={<ApprovalsPage />} />
       <Route path="/approvals/:id" element={<ApprovalDetailsPage />} />
+      <Route path="/audit" element={<AdminOnly><AuditPage /></AdminOnly>} />
       <Route path="/404" element={<NotFoundPage />} />
       <Route path="*" element={<Navigate to="/404" replace />} />
     </Route>
