@@ -12,6 +12,7 @@ import { AuditPage } from './pages/AuditPage'
 import { AdminOnly } from './auth/AdminOnly'
 import { ManagerOnly } from './auth/ManagerOnly'
 import { MobileSignPage } from './pages/MobileSignPage'
+import { IntegrationsPage } from './pages/IntegrationsPage'
 
 export function App() {
   return <Routes>
@@ -24,6 +25,7 @@ export function App() {
       <Route path="/approvals" element={<ApprovalsPage />} />
       <Route path="/approvals/:id" element={<ApprovalDetailsPage />} />
       <Route path="/audit" element={<AdminOnly><AuditPage /></AdminOnly>} />
+      <Route path="/integrations" element={<AdminOnly><IntegrationsPage /></AdminOnly>} />
       <Route path="/mobile-sign" element={<ManagerOnly><MobileSignPage /></ManagerOnly>} />
       <Route path="/404" element={<NotFoundPage />} />
       <Route path="*" element={<Navigate to="/404" replace />} />

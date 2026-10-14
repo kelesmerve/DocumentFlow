@@ -5,6 +5,7 @@ using DocumentFlow.Application.Approvals;
 using DocumentFlow.Application.Audit;
 using DocumentFlow.Application.Documents;
 using DocumentFlow.Application.Signatures;
+using DocumentFlow.Application.Integrations;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Authentication;
 using DocumentFlow.Infrastructure.Approvals;
@@ -15,6 +16,8 @@ using DocumentFlow.Infrastructure.Storage;
 using DocumentFlow.Infrastructure.Signatures;
 using DocumentFlow.Application.Timestamps;
 using DocumentFlow.Infrastructure.Timestamps;
+using DocumentFlow.Infrastructure.Integrations;
+using DocumentFlow.Api.Hosted;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +54,12 @@ builder.Services.AddSingleton<IRsaSigningKeyStore>(services => new RsaSigningKey
     builder.Environment.IsDevelopment(), services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()));
 builder.Services.AddScoped<IDocumentSignatureService, DocumentSignatureService>();
 builder.Services.AddScoped<IMobileSignatureService, MobileSignatureService>();
+builder.Services.AddSingleton<IOutboxTransport, RabbitEventPublisher>();
+builder.Services.AddScoped<OutboxDispatcher>();
+builder.Services.AddHostedService<OutboxPublisherService>();
+builder.Services.AddScoped<WebhookSecretProtector>();
+builder.Services.AddScoped<WebhookTargetPolicy>();
+builder.Services.AddScoped<IWebhookManagementService, WebhookManagementService>();
 var timestampProviderType = builder.Configuration["Timestamping:ProviderType"] ?? (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Test") ? "Local" : "ExternalRfc3161");
 if (timestampProviderType == "Local")
 {

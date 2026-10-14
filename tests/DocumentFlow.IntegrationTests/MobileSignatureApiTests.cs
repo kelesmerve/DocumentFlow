@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Persistence;
+using DocumentFlow.Infrastructure.Integrations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +57,9 @@ public sealed class MobileSignatureApiTests
         foreach (var action in new[] { AuditAction.MobileSignatureRequested, AuditAction.MobileSignatureApproved,
                      AuditAction.MobileSignatureCompleted, AuditAction.DocumentSigned })
             Assert.Equal(1, await db.AuditLogs.CountAsync(x => x.Action == action && x.DocumentId == doc && x.DocumentVersionId == version));
+        Assert.Equal(1, await db.OutboxMessages.CountAsync(x => x.EventType == IntegrationEventFactory.DocumentApproved));
+        Assert.Equal(1, await db.OutboxMessages.CountAsync(x => x.EventType == IntegrationEventFactory.DocumentSigned));
+        Assert.Equal(1, await db.OutboxMessages.CountAsync(x => x.EventType == IntegrationEventFactory.MobileSignatureCompleted && x.AggregateId == id));
     }
 
     [Fact]

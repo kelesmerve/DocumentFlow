@@ -3,6 +3,7 @@ using DocumentFlow.Application.Signatures;
 using DocumentFlow.Application.Documents;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Persistence;
+using DocumentFlow.Infrastructure.Integrations;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -79,6 +80,8 @@ public sealed class DocumentSignatureService(DocumentFlowDbContext db, IFileStor
         var signature = new DocumentSignature(Guid.NewGuid(), documentId, versionId, userId,
             "RSA-PSS", "SHA-256", hashHex, Convert.ToBase64String(signatureBytes), key.Fingerprint, now, method);
         db.DocumentSignatures.Add(signature);
+        db.OutboxMessages.Add(IntegrationEventFactory.Create(IntegrationEventFactory.DocumentSigned,
+            signature.Id, documentId, versionId, now, signature.Id));
         db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), userId, AuditAction.DocumentSigned, documentId,
             versionId, null, $"v{version.VersionNumber} dijital olarak imzalandı.", now));
         await db.SaveChangesAsync(cancellationToken);

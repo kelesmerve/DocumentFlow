@@ -15,6 +15,9 @@ const actions: { value: AuditAction; label: string }[] = [
   { value: 'DocumentSigned', label: 'Belge imzalandı' }, { value: 'TimestampCreated', label: 'Zaman damgası oluşturuldu' },
   { value: 'MobileSignatureRequested', label: 'Mobil imza talep edildi' }, { value: 'MobileSignatureApproved', label: 'Mobil imza onaylandı' },
   { value: 'MobileSignatureRejected', label: 'Mobil imza reddedildi' }, { value: 'MobileSignatureCompleted', label: 'Mobil imza tamamlandı' },
+  { value: 'WebhookCreated', label: 'Webhook eklendi' }, { value: 'WebhookEnabled', label: 'Webhook etkinleştirildi' },
+  { value: 'WebhookDisabled', label: 'Webhook devre dışı bırakıldı' }, { value: 'WebhookDeleted', label: 'Webhook silindi' },
+  { value: 'WebhookSecretRotated', label: 'Webhook secret yenilendi' },
 ]
 
 export function AuditPage() {

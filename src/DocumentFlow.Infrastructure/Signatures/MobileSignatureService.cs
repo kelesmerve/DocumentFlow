@@ -3,6 +3,7 @@ using DocumentFlow.Application.Documents;
 using DocumentFlow.Application.Signatures;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Persistence;
+using DocumentFlow.Infrastructure.Integrations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
@@ -91,6 +92,8 @@ public sealed class MobileSignatureService(DocumentFlowDbContext db, IFileStorag
         var signature = await signatures.SignForMobileAsync(request.DocumentId, request.DocumentVersionId, userId, request.FileHash, cancellationToken);
         var now = DateTime.UtcNow;
         request.Approve(signature.Id, now);
+        db.OutboxMessages.Add(IntegrationEventFactory.Create(IntegrationEventFactory.MobileSignatureCompleted,
+            request.Id, request.DocumentId, request.DocumentVersionId, now, signature.Id));
         db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), userId, AuditAction.MobileSignatureApproved,
             request.DocumentId, request.DocumentVersionId, null, "Mobil imza talebi onaylandı.", now));
         db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), userId, AuditAction.MobileSignatureCompleted,

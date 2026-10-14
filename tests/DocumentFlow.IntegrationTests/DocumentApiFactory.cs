@@ -37,7 +37,9 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
                 ["FileStorage:RootPath"] = _storageRoot,
                 ["SignatureSigning:KeyDirectory"] = Path.Combine(_storageRoot, "signing-keys"),
                 ["Timestamping:ProviderType"] = "Local",
-                ["Timestamping:Local:KeyDirectory"] = Path.Combine(_storageRoot, "tsa-keys")
+                ["Timestamping:Local:KeyDirectory"] = Path.Combine(_storageRoot, "tsa-keys"),
+                ["RabbitMq:Enabled"] = "false",
+                ["WebhookSecurity:EncryptionKey"] = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(_databaseName)))
             });
         });
         builder.ConfigureServices(services =>

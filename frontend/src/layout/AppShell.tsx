@@ -1,4 +1,4 @@
-import { Archive, CheckCheck, ChevronRight, FileSignature, Files, LayoutDashboard, LogOut, ScrollText } from 'lucide-react'
+import { Archive, CheckCheck, ChevronRight, FileSignature, Files, LayoutDashboard, LogOut, ScrollText, Webhook } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
@@ -27,6 +27,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button className="nav-link nav-disabled" disabled title="Bu özellik daha sonra eklenecek"><Archive size={17} /><span>Arşiv</span><small>Yakında</small></button>
         <div className="nav-section-label management-label">YÖNETİM</div>
         {user.role === 'Admin' ? <NavLink to="/audit" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><ScrollText size={17} /><span>İşlem Geçmişi</span></NavLink> : null}
+        {user.role === 'Admin' ? <NavLink to="/integrations" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}><Webhook size={17} /><span>Entegrasyonlar</span></NavLink> : null}
       </nav>
       <div className="sidebar-footer">
         <div className="profile-avatar" aria-hidden="true">{initials(user.firstName, user.lastName)}</div>

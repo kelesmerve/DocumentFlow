@@ -1,6 +1,7 @@
 using DocumentFlow.Application.Approvals;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Persistence;
+using DocumentFlow.Infrastructure.Integrations;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -86,6 +87,9 @@ public sealed class ApprovalService(DocumentFlowDbContext db) : IApprovalService
         };
         db.AuditLogs.Add(new AuditLog(Guid.NewGuid(), managerId, action, request.DocumentId, request.DocumentVersionId,
             request.Id, description, now));
+        if (decision == ApprovalStatus.Approved)
+            db.OutboxMessages.Add(IntegrationEventFactory.Create(IntegrationEventFactory.DocumentApproved,
+                request.Id, request.DocumentId, request.DocumentVersionId, now));
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return await GetAsync(id, managerId, false, cancellationToken);

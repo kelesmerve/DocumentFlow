@@ -21,7 +21,12 @@ public sealed class AuditQueryService(DocumentFlowDbContext db) : IAuditQuerySer
         [AuditAction.MobileSignatureRequested] = "Mobil imza talep edildi",
         [AuditAction.MobileSignatureApproved] = "Mobil imza onaylandı",
         [AuditAction.MobileSignatureRejected] = "Mobil imza reddedildi",
-        [AuditAction.MobileSignatureCompleted] = "Mobil imza tamamlandı"
+        [AuditAction.MobileSignatureCompleted] = "Mobil imza tamamlandı",
+        [AuditAction.WebhookCreated] = "Webhook eklendi",
+        [AuditAction.WebhookEnabled] = "Webhook etkinleştirildi",
+        [AuditAction.WebhookDisabled] = "Webhook devre dışı bırakıldı",
+        [AuditAction.WebhookDeleted] = "Webhook silindi",
+        [AuditAction.WebhookSecretRotated] = "Webhook secret yenilendi"
     };
 
     public async Task<AuditPage> ListAsync(AuditAction? action, Guid? userId, string? documentNumber, int page, int pageSize, CancellationToken cancellationToken)

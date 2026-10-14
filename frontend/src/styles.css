@@ -357,4 +357,13 @@ button { color: inherit; }
 .mobile-request-head h2 { margin: 6px 0 0; color: #354654; font-size: 14px; font-weight: 630; }
 .mobile-request-meta { display: flex; flex-wrap: wrap; gap: 8px 19px; margin-top: 14px; color: #748390; font-size: 11px; }
 .mobile-request-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+.integration-table { min-width: 760px; }
+.integration-url { max-width: 280px; overflow-wrap: anywhere; }
+.integration-actions { display: flex; gap: 13px; }
+.integration-delete { color: #9c4d4a; }
+.integration-deliveries { margin-top: 32px; }
+.integration-deliveries h2 { margin: 0 0 14px; color: #354654; font-size: 14px; }
+.integration-events { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px; }
+.integration-events legend { color: #4d5e6a; font-size: 11px; font-weight: 600; }
+.integration-events label { display: flex; align-items: center; gap: 7px; margin: 0; }
 @media (max-width: 600px) { .mobile-request-card { padding: 16px; } .mobile-request-actions .button { flex: 1 1 145px; justify-content: center; } .signature-panel-heading { align-items: flex-start; flex-direction: column; } }

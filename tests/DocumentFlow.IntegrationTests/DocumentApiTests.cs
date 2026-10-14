@@ -240,6 +240,9 @@ public sealed class DocumentApiTests
         Assert.Equal(v1Id, requests[0].DocumentVersionId);
         Assert.Equal(ApprovalStatus.RevisionRequested, requests[0].Status);
         Assert.Equal(ApprovalStatus.Approved, requests[1].Status);
+        var approvedEvent = await db.OutboxMessages.AsNoTracking().SingleAsync(x => x.EventType == "DocumentApproved" && x.AggregateId == secondApprovalId);
+        Assert.Null(approvedEvent.PublishedAtUtc);
+        Assert.DoesNotContain("payment terms", approvedEvent.Payload, StringComparison.OrdinalIgnoreCase);
         using var workflow = await owner.GetAsync($"/api/documents/{docId}/workflow");
         using var workflowJson = JsonDocument.Parse(await workflow.Content.ReadAsStringAsync());
         Assert.Equal(7, workflowJson.RootElement.GetArrayLength());

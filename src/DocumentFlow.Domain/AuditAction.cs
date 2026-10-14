@@ -14,5 +14,10 @@ public enum AuditAction
     MobileSignatureRequested,
     MobileSignatureApproved,
     MobileSignatureRejected,
-    MobileSignatureCompleted
+    MobileSignatureCompleted,
+    WebhookCreated,
+    WebhookEnabled,
+    WebhookDisabled,
+    WebhookDeleted,
+    WebhookSecretRotated
 }

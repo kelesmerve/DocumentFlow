@@ -1,0 +1,14 @@
+*
+!Directory.Build.props
+!src/
+!src/DocumentFlow.Domain/
+!src/DocumentFlow.Domain/**
+!src/DocumentFlow.Application/
+!src/DocumentFlow.Application/**
+!src/DocumentFlow.Infrastructure/
+!src/DocumentFlow.Infrastructure/**
+!src/DocumentFlow.IntegrationWorker/
+!src/DocumentFlow.IntegrationWorker/**
+**/bin
+**/obj
+**/.test-artifacts

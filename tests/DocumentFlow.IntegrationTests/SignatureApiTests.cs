@@ -6,6 +6,7 @@ using System.Text.Json;
 using DocumentFlow.Domain;
 using DocumentFlow.Infrastructure.Persistence;
 using DocumentFlow.Infrastructure.Signatures;
+using DocumentFlow.Infrastructure.Integrations;
 using DocumentFlow.Infrastructure.Timestamps;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -72,6 +73,12 @@ public sealed class SignatureApiTests
         Assert.Equal(managerId, audit.UserId);
         Assert.Equal(versionId, audit.DocumentVersionId);
         Assert.Equal(1, await db.DocumentSignatures.CountAsync(x => x.DocumentId == documentId && x.DocumentVersionId == versionId));
+        Assert.Equal(1, await db.OutboxMessages.CountAsync(x => x.EventType == IntegrationEventFactory.DocumentApproved && x.AggregateId != Guid.Empty));
+        var signedEvent = await db.OutboxMessages.SingleAsync(x => x.EventType == IntegrationEventFactory.DocumentSigned);
+        Assert.Equal(signedJson.RootElement.GetProperty("id").GetGuid(), signedEvent.AggregateId);
+        Assert.Null(signedEvent.PublishedAtUtc);
+        Assert.DoesNotContain("password", signedEvent.Payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("private", signedEvent.Payload, StringComparison.OrdinalIgnoreCase);
 
         using var adminSign = await admin.PostAsync(SignRoute(documentId, versionId), content: null);
         Assert.Equal(HttpStatusCode.Forbidden, adminSign.StatusCode);

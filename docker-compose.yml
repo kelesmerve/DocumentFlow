@@ -15,5 +15,42 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    container_name: documentflow-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-documentflow}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - documentflow-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+  integration-worker:
+    build:
+      context: .
+      dockerfile: src/DocumentFlow.IntegrationWorker/Dockerfile
+    container_name: documentflow-integration-worker
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__DocumentFlow: Host=postgres;Port=5432;Database=documentflow;Username=documentflow;Password=${POSTGRES_PASSWORD:-local-dev-only}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: ${RABBITMQ_USERNAME:-documentflow}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+      WebhookSecurity__EncryptionKey: ${WEBHOOK_ENCRYPTION_KEY:?Set WEBHOOK_ENCRYPTION_KEY in .env}
+      WebhookSecurity__AllowLocalTargets: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 volumes:
   documentflow-postgres-data:
+  documentflow-rabbitmq-data:
