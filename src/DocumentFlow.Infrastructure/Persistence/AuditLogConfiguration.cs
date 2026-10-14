@@ -25,5 +25,7 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.Action);
         builder.HasIndex(x => x.DocumentId);
+        builder.HasIndex(x => new { x.Action, x.CreatedAtUtc, x.Id }).IsDescending(false, true, true);
+        builder.HasIndex(x => new { x.UserId, x.CreatedAtUtc, x.Id }).IsDescending(false, true, true);
     }
 }

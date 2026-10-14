@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using DocumentFlow.Application.Documents;
 using DocumentFlow.Domain;
@@ -63,16 +64,12 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
     public async Task<DocumentDetails?> GetAsync(Guid documentId, Guid userId, bool isAdmin, CancellationToken cancellationToken)
     {
         var document = await AccessibleDocuments(userId, isAdmin)
-            .AsNoTracking().Include(x => x.Versions).SingleOrDefaultAsync(x => x.Id == documentId, cancellationToken);
+            .AsNoTracking().SingleOrDefaultAsync(x => x.Id == documentId, cancellationToken);
         if (document is null) return null;
-        var versions = document.Versions.AsEnumerable();
+        var versions = db.DocumentVersions.AsNoTracking().Where(x => x.DocumentId == documentId);
         if (!isAdmin && document.OwnerId != userId)
-        {
-            var assignedVersionIds = await db.ApprovalRequests.AsNoTracking().Where(x => x.DocumentId == documentId && x.AssignedToUserId == userId)
-                .Select(x => x.DocumentVersionId).ToListAsync(cancellationToken);
-            versions = versions.Where(x => assignedVersionIds.Contains(x.Id));
-        }
-        return ToDetails(document, versions.OrderBy(x => x.VersionNumber).ToArray());
+            versions = versions.Where(x => db.ApprovalRequests.Any(a => a.DocumentVersionId == x.Id && a.AssignedToUserId == userId));
+        return ToDetails(document, await versions.OrderBy(x => x.VersionNumber).ToListAsync(cancellationToken));
     }
 
     public async Task<DocumentDownload?> DownloadAsync(Guid documentId, int versionNumber, Guid userId, bool isAdmin, CancellationToken cancellationToken)
@@ -170,18 +167,31 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
             throw new DocumentInputException("The file extension and content type do not match.");
         if (upload.Length < 1 || upload.Length > MaxFileSize) throw new DocumentInputException("Files must be between 1 byte and 10 MB.");
 
-        var content = new MemoryStream((int)upload.Length);
+        var temporaryPath = Path.Combine(Path.GetTempPath(), $"documentflow-upload-{Guid.NewGuid():N}.tmp");
+        var content = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
+            81920, FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+        var buffer = ArrayPool<byte>.Shared.Rent(81920);
         try
         {
-            await upload.Content.CopyToAsync(content, cancellationToken);
-            if (content.Length is < 1 or > MaxFileSize || content.Length != upload.Length)
+            using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            long length = 0;
+            int read;
+            while ((read = await upload.Content.ReadAsync(buffer.AsMemory(), cancellationToken)) != 0)
+            {
+                length += read;
+                if (length > MaxFileSize || length > upload.Length)
+                    throw new DocumentInputException("The uploaded file size is invalid or exceeds 10 MB.");
+                hasher.AppendData(buffer, 0, read);
+                await content.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
+            if (length < 1 || length != upload.Length)
                 throw new DocumentInputException("The uploaded file size is invalid or exceeds 10 MB.");
             content.Position = 0;
-            var hash = Convert.ToHexString(await SHA256.HashDataAsync(content, cancellationToken));
-            content.Position = 0;
-            return new ValidatedUpload(originalName, extension, content.Length, hash, content);
+            return new ValidatedUpload(originalName, extension, length,
+                Convert.ToHexString(hasher.GetHashAndReset()), content);
         }
         catch { await content.DisposeAsync(); throw; }
+        finally { ArrayPool<byte>.Shared.Return(buffer); }
     }
 
     private static string SanitizeOriginalFileName(string input)
@@ -212,5 +222,5 @@ public sealed class DocumentService(DocumentFlowDbContext db, IFileStorage stora
 
     private static bool IsUniqueViolation(DbUpdateException exception) => exception.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.SerializationFailure };
 
-    private sealed record ValidatedUpload(string OriginalFileName, string Extension, long Length, string Hash, MemoryStream Content);
+    private sealed record ValidatedUpload(string OriginalFileName, string Extension, long Length, string Hash, Stream Content);
 }

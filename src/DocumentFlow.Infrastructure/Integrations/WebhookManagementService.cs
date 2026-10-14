@@ -23,9 +23,18 @@ public sealed class WebhookManagementService(DocumentFlowDbContext db, WebhookSe
         return ToSummary(endpoint);
     }
 
-    public async Task<IReadOnlyList<WebhookSummary>> ListAsync(CancellationToken ct) =>
-        (await db.WebhookEndpoints.AsNoTracking().Where(x => !x.IsDeleted).OrderByDescending(x => x.CreatedAtUtc)
-            .ToListAsync(ct)).Select(ToSummary).ToArray();
+    public async Task<WebhookPage> ListAsync(int page, int pageSize, CancellationToken ct)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var query = db.WebhookEndpoints.AsNoTracking().Where(x => !x.IsDeleted);
+        var total = await query.CountAsync(ct);
+        var rows = await query.OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(x => new { x.Id, x.Url, x.EventTypes, x.IsActive, x.CreatedAtUtc }).ToListAsync(ct);
+        return new WebhookPage(rows.Select(x => new WebhookSummary(x.Id, x.Url,
+            x.EventTypes.Split(',', StringSplitOptions.RemoveEmptyEntries), x.IsActive, x.CreatedAtUtc)).ToArray(),
+            page, pageSize, total);
+    }
 
     public async Task<WebhookSummary?> SetActiveAsync(Guid adminId, Guid id, bool active, CancellationToken ct)
     {
@@ -70,11 +79,31 @@ public sealed class WebhookManagementService(DocumentFlowDbContext db, WebhookSe
         return true;
     }
 
-    public async Task<IReadOnlyList<DeliverySummary>> DeliveriesAsync(int page, int pageSize, CancellationToken ct) =>
-        await db.WebhookDeliveries.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc)
-            .Skip((Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 100)).Take(Math.Clamp(pageSize, 1, 100))
+    public async Task<DeliveryPage> DeliveriesAsync(int page, int pageSize, DateTime? afterCreatedAtUtc,
+        Guid? afterId, CancellationToken ct)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize);
+        var query = db.WebhookDeliveries.AsNoTracking();
+        var total = await query.CountAsync(ct);
+        var useCursor = afterCreatedAtUtc.HasValue && afterId.HasValue;
+        if (useCursor)
+            query = query.Where(x => x.CreatedAtUtc < afterCreatedAtUtc!.Value ||
+                (x.CreatedAtUtc == afterCreatedAtUtc.Value && x.Id.CompareTo(afterId!.Value) < 0));
+        var rows = await query.OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id)
+            .Skip(useCursor ? 0 : (page - 1) * pageSize).Take(pageSize + (useCursor ? 1 : 0))
             .Select(x => new DeliverySummary(x.Id, x.EventId, x.WebhookEndpointId, x.EventType,
                 x.Status.ToString(), x.AttemptCount, x.CreatedAtUtc, x.DeliveredAtUtc, x.LastError)).ToListAsync(ct);
+        var items = rows.Take(pageSize).ToArray();
+        var hasMore = useCursor ? rows.Count > pageSize : (long)page * pageSize < total;
+        var last = hasMore && items.Length > 0 ? items[^1] : null;
+        return new DeliveryPage(items, page, pageSize, total, last?.CreatedAtUtc, last?.Id);
+    }
+
+    private static (int Page, int PageSize) NormalizePage(int page, int pageSize)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        return (Math.Min(Math.Max(page, 1), int.MaxValue / pageSize), pageSize);
+    }
 
     private async Task ValidateAsync(WebhookInput input, CancellationToken ct)
     {

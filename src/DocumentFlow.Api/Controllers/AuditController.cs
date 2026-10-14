@@ -13,8 +13,16 @@ public sealed class AuditController(IAuditQueryService audit) : ControllerBase
         [FromQuery] AuditAction? action,
         [FromQuery] Guid? userId,
         [FromQuery] string? documentNumber,
+        [FromQuery] DateTime? afterCreatedAtUtc,
+        [FromQuery] Guid? afterId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        CancellationToken cancellationToken = default) =>
-        Ok(await audit.ListAsync(action, userId, documentNumber, page, pageSize, cancellationToken));
+        CancellationToken cancellationToken = default)
+    {
+        if (afterCreatedAtUtc.HasValue != afterId.HasValue ||
+            (afterCreatedAtUtc.HasValue && (afterCreatedAtUtc.Value.Kind != DateTimeKind.Utc || page != 1)))
+            return BadRequest(new { message = "A UTC cursor requires afterCreatedAtUtc, afterId and page=1." });
+        return Ok(await audit.ListAsync(action, userId, documentNumber, page, pageSize,
+            afterCreatedAtUtc, afterId, cancellationToken));
+    }
 }

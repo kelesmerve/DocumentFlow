@@ -29,7 +29,8 @@ public sealed class AuditQueryService(DocumentFlowDbContext db) : IAuditQuerySer
         [AuditAction.WebhookSecretRotated] = "Webhook secret yenilendi"
     };
 
-    public async Task<AuditPage> ListAsync(AuditAction? action, Guid? userId, string? documentNumber, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<AuditPage> ListAsync(AuditAction? action, Guid? userId, string? documentNumber, int page, int pageSize,
+        DateTime? afterCreatedAtUtc, Guid? afterId, CancellationToken cancellationToken)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
         page = Math.Min(Math.Max(page, 1), int.MaxValue / pageSize);
@@ -43,8 +44,12 @@ public sealed class AuditQueryService(DocumentFlowDbContext db) : IAuditQuerySer
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
+        var useCursor = afterCreatedAtUtc.HasValue && afterId.HasValue;
+        if (useCursor)
+            query = query.Where(x => x.CreatedAtUtc < afterCreatedAtUtc!.Value ||
+                (x.CreatedAtUtc == afterCreatedAtUtc.Value && x.Id.CompareTo(afterId!.Value) < 0));
         var rawItems = await query.OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id)
-            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Skip(useCursor ? 0 : (page - 1) * pageSize).Take(pageSize + (useCursor ? 1 : 0))
             .Select(x => new
             {
                 x.Id,
@@ -62,8 +67,10 @@ public sealed class AuditQueryService(DocumentFlowDbContext db) : IAuditQuerySer
                 x.CreatedAtUtc
             }).ToListAsync(cancellationToken);
 
-        var items = rawItems.Select(x => new AuditEntry(x.Id, x.Action, ActionNames[x.Action], x.UserId, x.UserName, x.UserEmail,
+        var items = rawItems.Take(pageSize).Select(x => new AuditEntry(x.Id, x.Action, ActionNames[x.Action], x.UserId, x.UserName, x.UserEmail,
             x.DocumentId, x.DocumentNumber, x.DocumentTitle, x.DocumentVersionId, x.VersionNumber, x.ApprovalRequestId, x.Description, x.CreatedAtUtc)).ToArray();
-        return new AuditPage(items, page, pageSize, totalCount);
+        var hasMore = useCursor ? rawItems.Count > pageSize : (long)page * pageSize < totalCount;
+        var last = hasMore && items.Length > 0 ? items[^1] : null;
+        return new AuditPage(items, page, pageSize, totalCount, last?.CreatedAtUtc, last?.Id);
     }
 }

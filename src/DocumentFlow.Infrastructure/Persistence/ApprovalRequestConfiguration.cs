@@ -19,6 +19,8 @@ public sealed class ApprovalRequestConfiguration : IEntityTypeConfiguration<Appr
         builder.HasOne(x => x.RequestedByUser).WithMany().HasForeignKey(x => x.RequestedByUserId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.AssignedToUser).WithMany().HasForeignKey(x => x.AssignedToUserId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(x => new { x.AssignedToUserId, x.Status, x.CreatedAtUtc });
+        builder.HasIndex(x => new { x.AssignedToUserId, x.CreatedAtUtc, x.Id })
+            .IsDescending(false, true, true);
         builder.HasIndex(x => new { x.DocumentId, x.CreatedAtUtc });
         builder.HasIndex(x => x.DocumentId).IsUnique().HasFilter("\"Status\" = 'Pending'");
     }

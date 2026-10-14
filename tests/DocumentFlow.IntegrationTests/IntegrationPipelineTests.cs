@@ -73,6 +73,29 @@ public sealed class IntegrationPipelineTests
     }
 
     [Fact]
+    public async Task Configured_outbox_batch_publishes_bounded_messages_without_duplicate_claims()
+    {
+        await using var factory = new DocumentApiFactory();
+        using var client = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
+        for (var i = 0; i < 2; i++)
+            db.OutboxMessages.Add(IntegrationEventFactory.Create(IntegrationEventFactory.DocumentApproved,
+                Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddMilliseconds(i)));
+        await db.SaveChangesAsync();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["RabbitMq:Publisher:BatchSize"] = "2",
+            ["RabbitMq:Publisher:LeaseSeconds"] = "30",
+            ["RabbitMq:Publisher:PublishTimeoutSeconds"] = "15"
+        }).Build();
+        var transport = new FakeTransport();
+        Assert.Equal(2, await new OutboxDispatcher(db, transport, configuration).DispatchBatchAsync(CancellationToken.None));
+        Assert.Equal(2, transport.Calls);
+        Assert.Equal(2, await db.OutboxMessages.AsNoTracking().CountAsync(x => x.PublishedAtUtc != null));
+    }
+
+    [Fact]
     public async Task Consumer_is_idempotent_and_failed_webhook_retries_then_enters_dlq()
     {
         await using var factory = new DocumentApiFactory();

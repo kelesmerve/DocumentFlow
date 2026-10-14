@@ -73,6 +73,9 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DocumentId", "DocumentVersionId");
 
+                    b.HasIndex("AssignedToUserId", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
+
                     b.HasIndex("AssignedToUserId", "Status", "CreatedAtUtc");
 
                     b.ToTable("approval_requests", (string)null);
@@ -122,6 +125,12 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.HasIndex("DocumentId", "DocumentVersionId");
+
+                    b.HasIndex("Action", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
+
+                    b.HasIndex("UserId", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
 
                     b.ToTable("audit_logs", (string)null);
                 });
@@ -579,6 +588,9 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("WebhookEndpointId");
 
+                    b.HasIndex("CreatedAtUtc", "Id")
+                        .IsDescending();
+
                     b.HasIndex("EventId", "WebhookEndpointId")
                         .IsUnique();
 
@@ -620,6 +632,10 @@ namespace DocumentFlow.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("CreatedAtUtc", "Id")
+                        .IsDescending()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("webhook_endpoints", (string)null);
                 });

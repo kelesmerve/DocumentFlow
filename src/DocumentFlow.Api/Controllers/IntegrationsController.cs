@@ -12,7 +12,8 @@ public sealed class IntegrationsController(IWebhookManagementService service) : 
     public sealed record RotateBody(string Secret);
 
     [HttpGet]
-    public async Task<IActionResult> List(CancellationToken ct) => Ok(await service.ListAsync(ct));
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        CancellationToken ct = default) => Ok(await service.ListAsync(page, pageSize, ct));
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] WebhookInput input, CancellationToken ct)
@@ -49,7 +50,14 @@ public sealed class IntegrationsController(IWebhookManagementService service) : 
 
     [HttpGet("deliveries")]
     public async Task<IActionResult> Deliveries([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        CancellationToken ct = default) => Ok(await service.DeliveriesAsync(page, pageSize, ct));
+        [FromQuery] DateTime? afterCreatedAtUtc = null, [FromQuery] Guid? afterId = null,
+        CancellationToken ct = default)
+    {
+        if (afterCreatedAtUtc.HasValue != afterId.HasValue ||
+            (afterCreatedAtUtc.HasValue && (afterCreatedAtUtc.Value.Kind != DateTimeKind.Utc || page != 1)))
+            return BadRequest(new { message = "A UTC cursor requires afterCreatedAtUtc, afterId and page=1." });
+        return Ok(await service.DeliveriesAsync(page, pageSize, afterCreatedAtUtc, afterId, ct));
+    }
 
     private bool TryUser(out Guid id) => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out id);
 }

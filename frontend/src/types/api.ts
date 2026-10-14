@@ -80,6 +80,8 @@ export interface MobileSignatureRequest { id: string; documentId: string; docume
 export type IntegrationEventType = 'DocumentApproved' | 'DocumentSigned' | 'MobileSignatureCompleted'
 export interface WebhookEndpoint { id: string; url: string; eventTypes: IntegrationEventType[]; isActive: boolean; createdAtUtc: string }
 export interface WebhookDelivery { id: string; eventId: string; webhookEndpointId: string; eventType: IntegrationEventType; status: 'Pending' | 'Delivered' | 'DeadLetterPending' | 'DeadLetter'; attemptCount: number; createdAtUtc: string; deliveredAtUtc: string | null; lastError: string | null }
+export interface WebhookPage { items: WebhookEndpoint[]; page: number; pageSize: number; totalCount: number }
+export interface DeliveryPage { items: WebhookDelivery[]; page: number; pageSize: number; totalCount: number }
 export interface SignatureList { items: SignatureSummary[]; canSign: boolean }
 export interface SignatureVerification { signatureId: string; signedByUserId: string; signedByName: string; signatureAlgorithm: string; hashAlgorithm: string; publicKeyFingerprint: string; signedAtUtc: string; result: 'Valid' | 'Invalid' | 'Unverifiable'; message: string }
 export interface TimestampSummary { id: string; documentSignatureId: string; timestampAuthority: string; serialNumber: string; messageImprintAlgorithm: string; messageImprint: string; genTimeUtc: string; createdAtUtc: string; providerType: string }

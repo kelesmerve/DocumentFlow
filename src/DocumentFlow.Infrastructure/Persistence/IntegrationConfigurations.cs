@@ -26,6 +26,7 @@ public sealed class WebhookEndpointConfiguration : IEntityTypeConfiguration<Webh
         b.Property(x => x.EventTypes).HasMaxLength(240).IsRequired();
         b.Property(x => x.EncryptedSecret).HasMaxLength(2048).IsRequired();
         b.HasIndex(x => x.IsActive);
+        b.HasIndex(x => new { x.CreatedAtUtc, x.Id }).IsDescending().HasFilter("\"IsDeleted\" = false");
     }
 }
 
@@ -41,6 +42,7 @@ public sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<Webh
         b.HasOne(x => x.WebhookEndpoint).WithMany().HasForeignKey(x => x.WebhookEndpointId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.EventId, x.WebhookEndpointId }).IsUnique();
         b.HasIndex(x => new { x.Status, x.NextAttemptAtUtc, x.LeaseUntilUtc });
+        b.HasIndex(x => new { x.CreatedAtUtc, x.Id }).IsDescending();
     }
 }
 

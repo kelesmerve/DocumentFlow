@@ -102,7 +102,9 @@ if (app.Environment.IsDevelopment())
     await db.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<DevelopmentUserSeeder>().SeedAsync(CancellationToken.None);
 }
+app.UseRouting();
 if (app.Environment.IsDevelopment()) app.UseCors("FrontendDevelopment");
+app.UseMiddleware<RequestTelemetryMiddleware>();
 app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
 app.Run();
 

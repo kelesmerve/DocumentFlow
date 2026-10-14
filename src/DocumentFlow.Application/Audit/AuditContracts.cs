@@ -18,9 +18,11 @@ public sealed record AuditEntry(
     string? Description,
     DateTime CreatedAtUtc);
 
-public sealed record AuditPage(IReadOnlyList<AuditEntry> Items, int Page, int PageSize, int TotalCount);
+public sealed record AuditPage(IReadOnlyList<AuditEntry> Items, int Page, int PageSize, int TotalCount,
+    DateTime? NextAfterCreatedAtUtc = null, Guid? NextAfterId = null);
 
 public interface IAuditQueryService
 {
-    Task<AuditPage> ListAsync(AuditAction? action, Guid? userId, string? documentNumber, int page, int pageSize, CancellationToken cancellationToken);
+    Task<AuditPage> ListAsync(AuditAction? action, Guid? userId, string? documentNumber, int page, int pageSize,
+        DateTime? afterCreatedAtUtc, Guid? afterId, CancellationToken cancellationToken);
 }

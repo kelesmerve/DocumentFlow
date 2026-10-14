@@ -1,9 +1,9 @@
 import { api } from './client'
-import type { IntegrationEventType, WebhookDelivery, WebhookEndpoint } from '../types/api'
+import type { DeliveryPage, IntegrationEventType, WebhookEndpoint, WebhookPage } from '../types/api'
 
 const root = '/api/integrations/webhooks'
 export const integrationsApi = {
-  async list(): Promise<WebhookEndpoint[]> { return (await api.get<WebhookEndpoint[]>(root)).data },
+  async list(page = 1): Promise<WebhookPage> { return (await api.get<WebhookPage>(`${root}?page=${page}&pageSize=20`)).data },
   async create(input: { url: string; eventTypes: IntegrationEventType[]; secret: string }): Promise<WebhookEndpoint> {
     return (await api.post<WebhookEndpoint>(root, input)).data
   },
@@ -11,5 +11,5 @@ export const integrationsApi = {
     return (await api.patch<WebhookEndpoint>(`${root}/${id}/active`, { isActive })).data
   },
   async remove(id: string): Promise<void> { await api.delete(`${root}/${id}`) },
-  async deliveries(): Promise<WebhookDelivery[]> { return (await api.get<WebhookDelivery[]>(`${root}/deliveries?page=1&pageSize=30`)).data },
+  async deliveries(page = 1): Promise<DeliveryPage> { return (await api.get<DeliveryPage>(`${root}/deliveries?page=${page}&pageSize=20`)).data },
 }
