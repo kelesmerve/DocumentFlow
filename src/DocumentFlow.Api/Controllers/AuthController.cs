@@ -23,6 +23,8 @@ public sealed class AuthController(IAuthenticationService authentication) : Cont
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
         var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return !Guid.TryParse(value, out var id) ? Unauthorized() : Ok(await authentication.GetUserAsync(id, cancellationToken));
+        if (!Guid.TryParse(value, out var id)) return Unauthorized();
+        var user = await authentication.GetUserAsync(id, cancellationToken);
+        return user is null ? Unauthorized() : Ok(user);
     }
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Dialog } from './Dialog'
 import { BadgeCheck, Clock3, LoaderCircle, PenLine, ShieldCheck, ShieldQuestion, ShieldX } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -55,13 +56,12 @@ export function VersionSignatures({ documentId, version }: { documentId: string;
     {sign.isSuccess && <div className="signature-success" role="status">Belge versiyonu imzalandı.</div>}
     {verification.isError && signatures.data?.items.length ? <div className="signature-error" role="alert">İmza doğrulaması alınamadı.</div> : null}
     {signatures.data?.items.length ? <p className="signature-disclaimer">Doğrulama dosya bütünlüğünü ve kayıtlı anahtarla ilişkiyi kontrol eder; gerçek kişi kimliği veya hukuki geçerlilik garantisi vermez.</p> : null}
-    {confirmOpen && <div className="dialog-backdrop" role="presentation"><section className="workflow-dialog signature-dialog" role="dialog" aria-modal="true" aria-labelledby={`sign-title-${version.id}`}>
-      <header><h2 id={`sign-title-${version.id}`}>Versiyonu dijital olarak imzala</h2></header>
+    {confirmOpen && <Dialog title="Versiyonu dijital olarak imzala" onClose={() => setConfirmOpen(false)} busy={sign.isPending} className="signature-dialog">
       <div className="workflow-form"><p className="dialog-intro">v{version.versionNumber} versiyonu RSA-PSS ve SHA-256 kullanılarak imzalanacak. Bu işlem mevcut dosya içeriğini değiştirmez.</p>
         {sign.isError && <div className="form-error" role="alert">{apiErrorMessage(sign.error, 'Belge imzalanamadı.')}</div>}
         <footer><button className="button button-quiet" onClick={() => setConfirmOpen(false)} disabled={sign.isPending}>Vazgeç</button><button className="button button-primary" onClick={() => sign.mutate()} disabled={sign.isPending}>{sign.isPending ? <LoaderCircle size={15} className="spin" /> : <PenLine size={15} />}İmzala</button></footer>
       </div>
-    </section></div>}
+    </Dialog>}
   </div>
 }
 

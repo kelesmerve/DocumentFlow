@@ -117,12 +117,12 @@ public sealed class SignatureApiTests
             await db.Users.Where(x => x.Id == inactiveId).ExecuteUpdateAsync(update => update.SetProperty(x => x.IsActive, false));
         }
         using var inactiveManagerSign = await otherManager.PostAsync(SignRoute(inactiveDocId, inactiveVersionId), content: null);
-        Assert.Equal(HttpStatusCode.NotFound, inactiveManagerSign.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, inactiveManagerSign.StatusCode);
 
         using var foreignList = await otherManager.GetAsync(SignaturesRoute(approvedDocId, approvedVersionId));
-        Assert.Equal(HttpStatusCode.NotFound, foreignList.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, foreignList.StatusCode);
         using var foreignVerify = await otherManager.GetAsync(VerifyRoute(approvedDocId, approvedVersionId));
-        Assert.Equal(HttpStatusCode.NotFound, foreignVerify.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, foreignVerify.StatusCode);
         using var adminVerify = await admin.GetAsync(VerifyRoute(approvedDocId, approvedVersionId));
         Assert.Equal(HttpStatusCode.OK, adminVerify.StatusCode);
     }

@@ -29,9 +29,10 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
     if (typeof data === 'string' && data.trim()) return data
     const payload = data && typeof data === 'object' ? data as ApiErrorBody : undefined
     if (payload?.message) return payload.message
-    if (payload?.title) return payload.title
     const firstValidationError = payload?.errors && Object.values(payload.errors).flat()[0]
     if (firstValidationError) return firstValidationError
+    if (payload?.detail) return payload.detail
+    if (payload?.title) return payload.title
     if (error.response?.status === 413) return 'Dosya boyutu izin verilen sınırı aşıyor.'
   }
   return fallback

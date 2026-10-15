@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using DocumentFlow.Application.Authentication;
 using DocumentFlow.Application.Approvals;
 using DocumentFlow.Application.Audit;
@@ -23,6 +24,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -42,6 +45,26 @@ if (Encoding.UTF8.GetByteCount(jwt.SigningKey) < 32) throw new InvalidOperationE
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
 {
     o.TokenValidationParameters = new TokenValidationParameters { ValidateIssuer = true, ValidIssuer = jwt.Issuer, ValidateAudience = true, ValidAudience = jwt.Audience, ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)), ValidateLifetime = true, ClockSkew = TimeSpan.FromSeconds(30), RoleClaimType = System.Security.Claims.ClaimTypes.Role, NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier };
+    o.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var idValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var roleValue = context.Principal?.FindFirstValue(ClaimTypes.Role);
+            if (!Guid.TryParse(idValue, out var id) || roleValue is null)
+            {
+                context.Fail("Invalid identity.");
+                return;
+            }
+
+            var db = context.HttpContext.RequestServices.GetRequiredService<DocumentFlowDbContext>();
+            var currentRole = await db.Users.AsNoTracking()
+                .Where(user => user.Id == id && user.IsActive)
+                .Select(user => (UserRole?)user.Role)
+                .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+            if (currentRole?.ToString() != roleValue) context.Fail("Identity is no longer active.");
+        }
+    };
 });
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
@@ -94,6 +117,26 @@ builder.Services.AddSingleton<IFileStorage>(_ =>
 });
 
 var app = builder.Build();
+app.Use(async (context, next) =>
+{
+    try { await next(context); }
+    catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) { }
+    catch (Exception exception)
+    {
+        app.Logger.LogError("Unhandled API error of type {ExceptionType}", exception.GetType().Name);
+        if (context.Response.HasStarted) { context.Abort(); return; }
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/problem+json";
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status500InternalServerError,
+            Title = "Internal Server Error",
+            Detail = "An unexpected error occurred. Please try again later."
+        };
+        await context.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions(JsonSerializerDefaults.Web)), context.RequestAborted);
+    }
+});
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger(); app.UseSwaggerUI();

@@ -91,5 +91,6 @@ export interface TimestampCreateResponse { timestamp: TimestampSummary; verifica
 export interface ApiErrorBody {
   message?: string
   title?: string
+    detail?: string
   errors?: Record<string, string[]>
 }

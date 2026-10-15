@@ -180,7 +180,7 @@ public sealed class MobileSignatureApiTests
                 .ExecuteUpdateAsync(u => u.SetProperty(x => x.IsActive, false));
         }
         using var inactive = await manager.PostAsync(CreateRoute(doc, version), null);
-        Assert.Equal(HttpStatusCode.NotFound, inactive.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, inactive.StatusCode);
         await using var checkScope = factory.Services.CreateAsyncScope();
         var check = checkScope.ServiceProvider.GetRequiredService<DocumentFlowDbContext>();
         Assert.Equal(0, await check.MobileSignatureRequests.CountAsync(x => x.DocumentId == doc));

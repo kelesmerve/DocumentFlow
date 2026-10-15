@@ -8,4 +8,7 @@ public sealed class AuthorizationProbeController : ControllerBase
 {
     [HttpGet("admin"), Authorize(Roles = "Admin")]
     public IActionResult AdminOnly() => Ok(new { authorized = true });
+
+    [HttpGet("failure"), AllowAnonymous]
+    public IActionResult Failure() => throw new InvalidOperationException("Sensitive internal diagnostic marker");
 }

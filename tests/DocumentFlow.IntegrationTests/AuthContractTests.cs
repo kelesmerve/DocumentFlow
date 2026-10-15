@@ -2,19 +2,12 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DocumentFlow.IntegrationTests;
 
 public sealed class AuthContractTests
 {
-    private static WebApplicationFactory<Program> CreateFactory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-    {
-        builder.UseEnvironment("Development");
-        builder.ConfigureServices(services => services.AddControllers().AddApplicationPart(typeof(AuthorizationProbeController).Assembly));
-    });
+    private static DocumentApiFactory CreateFactory() => new();
 
     [Fact]
     public async Task Valid_user_can_login_and_access_me_without_exposing_hash()

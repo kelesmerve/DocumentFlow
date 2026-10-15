@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Dialog } from '../components/Dialog'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { mobileSignaturesApi } from '../api/mobileSignatures'
@@ -53,13 +54,12 @@ export function MobileSignPage() {
         </article>
       })}
     </div>}
-    {selected && <div className="dialog-backdrop" role="presentation"><section className="workflow-dialog" role="dialog" aria-modal="true" aria-labelledby="mobile-decision-title">
-      <header><h2 id="mobile-decision-title">{mode === 'approve' ? 'Mobil imzayı onayla' : 'Talebi reddet'}</h2></header>
+    {selected && <Dialog title={mode === "approve" ? "Mobil imzay? onayla" : "Talebi reddet"} onClose={close} busy={approve.isPending || reject.isPending}>
       <div className="workflow-form"><p className="dialog-intro">{selected.documentNumber} · v{selected.versionNumber}. {mode === 'approve' ? 'Kimliğinizi parolanızla yeniden doğrulayın. Ardından RSA-PSS imzası oluşturulacak.' : 'Bu talep reddedilecek ve tekrar kullanılamayacak.'}</p>
         {mode === 'approve' && <><label htmlFor="mobile-password">Parola</label><input id="mobile-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></>}
         {(approve.isError || reject.isError) && <div className="form-error" role="alert">{apiErrorMessage(approve.error ?? reject.error, 'İşlem tamamlanamadı.')}</div>}
         <footer><button type="button" className="button button-quiet" onClick={close} disabled={approve.isPending || reject.isPending}>Vazgeç</button><button type="button" className={mode === 'reject' ? 'button button-danger' : 'button button-primary'} disabled={approve.isPending || reject.isPending || (mode === 'approve' && !password)} onClick={() => { if (mode === 'approve') approve.mutate({ id: selected.id, password }); else reject.mutate(selected.id) }}>{mode === 'approve' ? 'Onayla ve İmzala' : 'Reddet'}</button></footer>
       </div>
-    </section></div>}
+    </Dialog>}
   </>
 }
